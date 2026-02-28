@@ -1,6 +1,7 @@
 const requiredServerKeys = [
   "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY"
 ] as const;
 
 export const OFFICIAL_CET_URL = "https://cet.neea.edu.cn/";
@@ -81,6 +82,32 @@ function hasValue(value?: string) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isValidSupabaseUrl(value?: string) {
+  if (!hasValue(value)) return false;
+  const normalized = value!.trim();
+  if (normalized.includes("=")) return false;
+  try {
+    const parsed = new URL(normalized);
+    return parsed.protocol === "https:" && /\.supabase\.co$/i.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isValidSupabaseAnonKey(value?: string) {
+  if (!hasValue(value)) return false;
+  const normalized = value!.trim();
+  if (normalized.includes("=")) return false;
+  return /^sb_(publishable|anon)_/.test(normalized) || /^eyJ/.test(normalized);
+}
+
+function isValidSupabaseServiceKey(value?: string) {
+  if (!hasValue(value)) return false;
+  const normalized = value!.trim();
+  if (normalized.includes("=")) return false;
+  return /^sb_secret_/.test(normalized) || /^eyJ/.test(normalized);
+}
+
 export const appConfig = {
   prep: {
     startDate: "2026-03-01",
@@ -94,7 +121,14 @@ export const appConfig = {
 } as const;
 
 export function getMissingBaseEnv() {
-  return requiredServerKeys.filter((key) => !hasValue(process.env[key]));
+  return requiredServerKeys.filter((key) => {
+    const value = process.env[key];
+    if (!hasValue(value)) return true;
+    if (key === "NEXT_PUBLIC_SUPABASE_URL") return !isValidSupabaseUrl(value);
+    if (key === "NEXT_PUBLIC_SUPABASE_ANON_KEY") return !isValidSupabaseAnonKey(value);
+    if (key === "SUPABASE_SERVICE_ROLE_KEY") return !isValidSupabaseServiceKey(value);
+    return false;
+  });
 }
 
 export function isSupabaseReady() {
@@ -106,5 +140,5 @@ export function getEnvOrThrow(name: keyof NodeJS.ProcessEnv) {
   if (!hasValue(value)) {
     throw new Error(`缺少环境变量: ${name}`);
   }
-  return value!;
+  return value!.trim();
 }
