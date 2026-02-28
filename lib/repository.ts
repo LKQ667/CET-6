@@ -742,33 +742,46 @@ export async function listResources(): Promise<ResourceItem[]> {
     href: item.href,
     sourceLabel: item.sourceLabel
   }));
-
-  if (!isSupabaseReady()) {
-    return mockStore.listResources();
-  }
-
-  await ensureBuiltinResourcesInDb();
-  const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase
-    .from("builtin_resources")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-  if (error) {
-    throw new Error(`读取 builtin_resources 失败: ${error.message}`);
-  }
-
-  const builtins: ResourceItem[] = (data ?? []).map((row) => ({
-    id: String(row.id),
-    title: String(row.title),
-    description: String(row.description ?? ""),
+  const builtinFallback: ResourceItem[] = builtinResourceConfig.map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
     type: "builtin_pdf",
-    href: String(row.public_path),
-    sourceLabel: "你提供的资料",
-    fileName: String(row.file_name)
+    href: item.href,
+    sourceLabel: item.sourceLabel,
+    fileName: item.fileName
   }));
 
-  return [official, ...externals, ...builtins];
+  if (!isSupabaseReady()) {
+    return [official, ...externals, ...builtinFallback];
+  }
+
+  try {
+    await ensureBuiltinResourcesInDb();
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("builtin_resources")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+    if (error) {
+      throw new Error(`读取 builtin_resources 失败: ${error.message}`);
+    }
+
+    const builtins: ResourceItem[] = (data ?? []).map((row) => ({
+      id: String(row.id),
+      title: String(row.title),
+      description: String(row.description ?? ""),
+      type: "builtin_pdf",
+      href: String(row.public_path),
+      sourceLabel: "你提供的资料",
+      fileName: String(row.file_name)
+    }));
+
+    return [official, ...externals, ...builtins];
+  } catch {
+    return [official, ...externals, ...builtinFallback];
+  }
 }
 
 export async function saveUpload(payload: {
