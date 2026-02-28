@@ -87,7 +87,7 @@ export function VocabBattle({ task, vocabList, onComplete, onCancel }: VocabBatt
         }, 1100);
       }
     }
-  }, [inputVal, currentIndex, words, cleared, onComplete, task.id]);
+  }, [inputVal, currentIndex, words, cleared]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
