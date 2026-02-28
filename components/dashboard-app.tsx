@@ -39,6 +39,7 @@ interface ApiResponse<T> {
   ok: boolean;
   data?: T;
   error?: string;
+  detail?: unknown;
 }
 
 interface BuiltinImportResponse {
@@ -116,7 +117,13 @@ function resourceActionLabel(item: ResourceItem) {
 async function parseApi<T>(response: Response) {
   const json = (await response.json()) as ApiResponse<T>;
   if (!json.ok || json.data === undefined) {
-    throw new Error(json.error ?? zhCN.api.common.internalError);
+    const detail =
+      typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail ?? "");
+    throw new Error(
+      detail
+        ? `${json.error ?? zhCN.api.common.internalError} | ${detail}`
+        : (json.error ?? zhCN.api.common.internalError)
+    );
   }
   return json.data;
 }
@@ -241,7 +248,7 @@ export function DashboardApp() {
         body: JSON.stringify({ email })
       });
       await parseApi<{ sent?: boolean; mockMode?: boolean; message?: string }>(response);
-      setMessage(`验证码已发送。${zhCN.ui.loginHint}`);
+      setMessage("验证码已发送，请使用邮件中的最新验证码（通常为 6~8 位）。");
     } catch (error) {
       setMessage(`发送验证码失败：${String(error)}`);
     } finally {
@@ -265,6 +272,7 @@ export function DashboardApp() {
       const data = await parseApi<{
         user: { id: string; email: string };
         accessToken: string;
+        syncWarning?: string | null;
       }>(response);
 
       const nextAuth: AuthState = {
@@ -274,7 +282,7 @@ export function DashboardApp() {
       };
       localStorage.setItem("cet6_auth", JSON.stringify(nextAuth));
       setAuth(nextAuth);
-      setMessage(zhCN.ui.loginSuccess);
+      setMessage(data.syncWarning ? `${zhCN.ui.loginSuccess}（${data.syncWarning}）` : zhCN.ui.loginSuccess);
     } catch (error) {
       setMessage(`验证码校验失败：${String(error)}`);
     } finally {
@@ -570,6 +578,8 @@ export function DashboardApp() {
               <p className="panel-sub">{zhCN.ui.loginDesc}</p>
               <div className="form-line">
                 <input
+                  id="login-email"
+                  name="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder={zhCN.ui.emailPlaceholder}
@@ -581,6 +591,8 @@ export function DashboardApp() {
               </div>
               <div className="form-line">
                 <input
+                  id="login-otp"
+                  name="otp"
                   value={otp}
                   onChange={(event) => setOtp(event.target.value)}
                   placeholder={zhCN.ui.otpPlaceholder}
@@ -590,7 +602,7 @@ export function DashboardApp() {
                   {zhCN.ui.loginSync}
                 </button>
               </div>
-              <p className="panel-sub">{zhCN.ui.loginHint}</p>
+              <p className="panel-sub">请填写邮件中的最新验证码（一次性，通常为 6~8 位）。</p>
             </article>
 
             <article className="panel resource-panel">

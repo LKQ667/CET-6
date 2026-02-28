@@ -11,7 +11,7 @@ import { getSupabaseServerClient, getSupabaseServiceClient } from "@/lib/supabas
 
 const schema = z.object({
   email: z.string().email("邮箱格式错误"),
-  token: z.string().min(4, "验证码过短")
+  token: z.string().trim().min(4, "验证码过短")
 });
 
 export async function POST(request: NextRequest) {
@@ -41,20 +41,29 @@ export async function POST(request: NextRequest) {
       type: "email"
     });
     if (error || !data.user || !data.session) {
-      return errorJson(error?.message ?? zhCN.api.auth.verifyOtpFailed, 401);
+      return errorJson(error?.message ?? zhCN.api.auth.verifyOtpFailed, 401, {
+        hint: "验证码可能已过期或已被使用，请重新发送最新验证码。",
+        email
+      });
     }
 
-    const service = getSupabaseServiceClient();
-    await ensureUserMeta(data.user.id);
-    const { error: userUpdateError } = await service
-      .from("users")
-      .update({
-        email,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", data.user.id);
-    if (userUpdateError) {
-      return errorJson(`同步用户邮箱失败: ${userUpdateError.message}`, 500);
+    let syncWarning: string | null = null;
+    try {
+      const service = getSupabaseServiceClient();
+      await ensureUserMeta(data.user.id);
+      const { error: userUpdateError } = await service
+        .from("users")
+        .update({
+          email,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", data.user.id);
+      if (userUpdateError) {
+        syncWarning = `用户资料同步失败: ${userUpdateError.message}`;
+      }
+    } catch (syncError) {
+      syncWarning = `用户资料同步失败: ${String(syncError)}`;
+      console.error("[verify-otp] user meta sync failed", syncError);
     }
 
     return okJson({
@@ -63,7 +72,8 @@ export async function POST(request: NextRequest) {
       user: {
         id: data.user.id ?? randomUUID(),
         email
-      }
+      },
+      syncWarning
     });
   } catch (error) {
     return errorJson(zhCN.api.auth.verifyOtpFailed, 500, String(error));
