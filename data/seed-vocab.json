@@ -1,0 +1,258 @@
+[
+  {
+    "lemma": "motivation",
+    "meaningZh": "动机；学习动力",
+    "pos": "n.",
+    "phonetic": "/ˌməʊtɪˈveɪʃn/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828149.html",
+      "sourceSnippet": "the importance of motivation and methods in learning"
+    }
+  },
+  {
+    "lemma": "method",
+    "meaningZh": "方法",
+    "pos": "n.",
+    "phonetic": "/ˈmeθəd/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828149.html",
+      "sourceSnippet": "the importance of motivation and methods in learning"
+    }
+  },
+  {
+    "lemma": "illustrate",
+    "meaningZh": "举例说明",
+    "pos": "v.",
+    "phonetic": "/ˈɪləstreɪt/",
+    "frequencyInPapers": 2,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828149.html",
+      "sourceSnippet": "You can cite examples to illustrate your views."
+    }
+  },
+  {
+    "lemma": "mutual",
+    "meaningZh": "相互的",
+    "pos": "adj.",
+    "phonetic": "/ˈmjuːtʃuəl/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-2-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828165.html",
+      "sourceSnippet": "the importance of mutual understanding and respect in interpersonal relationships"
+    }
+  },
+  {
+    "lemma": "understanding",
+    "meaningZh": "理解",
+    "pos": "n.",
+    "phonetic": "/ˌʌndəˈstændɪŋ/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-2-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828165.html",
+      "sourceSnippet": "the importance of mutual understanding and respect in interpersonal relationships"
+    }
+  },
+  {
+    "lemma": "respect",
+    "meaningZh": "尊重",
+    "pos": "n./v.",
+    "phonetic": "/rɪˈspekt/",
+    "frequencyInPapers": 2,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-2-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828165.html",
+      "sourceSnippet": "the importance of mutual understanding and respect in interpersonal relationships"
+    }
+  },
+  {
+    "lemma": "interpersonal",
+    "meaningZh": "人际的",
+    "pos": "adj.",
+    "phonetic": "/ˌɪntəˈpɜːsənl/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-2-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828165.html",
+      "sourceSnippet": "the importance of mutual understanding and respect in interpersonal relationships"
+    }
+  },
+  {
+    "lemma": "relationship",
+    "meaningZh": "关系",
+    "pos": "n.",
+    "phonetic": "/rɪˈleɪʃnʃɪp/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-2-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet6.koolearn.com/20190615/828165.html",
+      "sourceSnippet": "the importance of mutual understanding and respect in interpersonal relationships"
+    }
+  },
+  {
+    "lemma": "responsibility",
+    "meaningZh": "责任",
+    "pos": "n.",
+    "phonetic": "/rɪˌspɒnsəˈbɪləti/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 12,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "http://edu.newdu.com/CET6/Synthetical/OldExam/201912/626841.html",
+      "sourceSnippet": "the importance of having a sense of social responsibility"
+    }
+  },
+  {
+    "lemma": "social",
+    "meaningZh": "社会的",
+    "pos": "adj.",
+    "phonetic": "/ˈsəʊʃl/",
+    "frequencyInPapers": 2,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 12,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "http://edu.newdu.com/CET6/Synthetical/OldExam/201912/626841.html",
+      "sourceSnippet": "the importance of having a sense of social responsibility"
+    }
+  },
+  {
+    "lemma": "harmony",
+    "meaningZh": "和谐",
+    "pos": "n.",
+    "phonetic": "/ˈhɑːməni/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 12,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "http://edu.newdu.com/CET6/Synthetical/OldExam/201912/626841.html",
+      "sourceSnippet": "of great significance for social harmony"
+    }
+  },
+  {
+    "lemma": "significance",
+    "meaningZh": "重要性；意义",
+    "pos": "n.",
+    "phonetic": "/sɪɡˈnɪfɪkəns/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 12,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "http://edu.newdu.com/CET6/Synthetical/OldExam/201912/626841.html",
+      "sourceSnippet": "of great significance for social harmony"
+    }
+  },
+  {
+    "lemma": "demonstrate",
+    "meaningZh": "展示；论证",
+    "pos": "v.",
+    "phonetic": "/ˈdemənstreɪt/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet4-6.xdf.cn/201906/10938061.html",
+      "sourceSnippet": "realize how to demonstrate the importance of students' motivation"
+    }
+  },
+  {
+    "lemma": "instruction",
+    "meaningZh": "指示；教学指导",
+    "pos": "n.",
+    "phonetic": "/ɪnˈstrʌkʃn/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet4-6.xdf.cn/201906/10938061.html",
+      "sourceSnippet": "students would be more willing to accept their teachers' instructions"
+    }
+  },
+  {
+    "lemma": "explore",
+    "meaningZh": "探索",
+    "pos": "v.",
+    "phonetic": "/ɪkˈsplɔː(r)/",
+    "frequencyInPapers": 1,
+    "verificationStatus": "public_source",
+    "isVerified": true,
+    "provenance": {
+      "examYear": 2019,
+      "examMonth": 6,
+      "paperCode": "set-1-writing",
+      "questionType": "writing",
+      "sourceUrl": "https://cet4-6.xdf.cn/201906/10938061.html",
+      "sourceSnippet": "try to explore new fields of knowledge"
+    }
+  }
+]
+
