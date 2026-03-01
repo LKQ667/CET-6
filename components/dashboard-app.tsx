@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import confetti from "canvas-confetti";
 import CountUp from "react-countup";
@@ -163,10 +163,14 @@ export function DashboardApp() {
   const [activeBattleTask, setActiveBattleTask] = useState<DailyTask | null>(null);
   const [isBossBattleActive, setIsBossBattleActive] = useState(false);
 
-  const daysLeft = useMemo(() => calcDaysLeft(), []);
+  const [daysLeft, setDaysLeft] = useState(0);
   const taskDoneCount = taskData?.tasks.filter((task) => task.completed).length ?? 0;
   const taskTotalCount = taskData?.tasks.length ?? 0;
   const progress = levelProgress(gameProfile);
+
+  useEffect(() => {
+    setDaysLeft(calcDaysLeft());
+  }, []);
 
   useEffect(() => {
     const cache = localStorage.getItem("cet6_auth");
