@@ -17,12 +17,18 @@ const SENTENCES = [
   {
     en: "the rapid development of technology has improved human life",
     zh: "技术的飞速发展极大地改善了人类的生活。",
-    audio: "/audio/listening/rapid-development.wav"
+    audioCandidates: [
+      "/audio/listening/rapid-development.m4a",
+      "/audio/listening/rapid-development.wav"
+    ]
   },
   {
     en: "climate change poses a severe threat to global ecosystems",
     zh: "气候变化对全球生态系统构成了极其严重的威胁。",
-    audio: "/audio/listening/climate-change.wav"
+    audioCandidates: [
+      "/audio/listening/climate-change.m4a",
+      "/audio/listening/climate-change.wav"
+    ]
   }
 ];
 
@@ -84,9 +90,10 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
     stopCurrentAudio();
     cancelSpeech();
 
-    if (sentenceObj.audio) {
+    const candidates = sentenceObj.audioCandidates ?? [];
+    for (const audioSrc of candidates) {
       try {
-        const audio = new Audio(sentenceObj.audio);
+        const audio = new Audio(audioSrc);
         audio.preload = "auto";
         audioRef.current = audio;
 
@@ -101,13 +108,14 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
           };
           audio.onerror = () => {
             setSpeaking(false);
-            reject(new Error("audio_file_play_failed"));
+            reject(new Error(`audio_file_play_failed:${audioSrc}`));
           };
           audio.play().catch(reject);
         });
 
         return;
       } catch {
+        stopCurrentAudio();
         // 回退 TTS
       }
     }
@@ -116,7 +124,7 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
     if (!ttsOk) {
       setAudioError("语音播放失败，请重试或检查浏览器语音权限。");
     }
-  }, [playByTts, sentenceObj.audio, stopCurrentAudio]);
+  }, [playByTts, sentenceObj.audioCandidates, stopCurrentAudio]);
 
   useEffect(() => {
     return () => {
