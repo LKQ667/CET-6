@@ -689,10 +689,12 @@ export function DashboardApp() {
             <article className="panel auth-panel">
               <h2>账号登录（密码优先）</h2>
               <p className="panel-sub">先注册账号，再用密码登录。验证码方式保留为备用。</p>
+              <form autoComplete="on" onSubmit={(e) => { e.preventDefault(); loginWithPassword(); }}>
               <div className="form-line">
                 <input
                   id="login-email"
                   name="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder={zhCN.ui.emailPlaceholder}
@@ -706,15 +708,17 @@ export function DashboardApp() {
                 <input
                   id="login-password"
                   name="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="输入密码（至少 6 位）"
                   type="password"
                 />
-                <button onClick={loginWithPassword} disabled={actionBusy || !email || password.length < 6} type="button">
+                <button disabled={actionBusy || !email || password.length < 6} type="submit">
                   密码登录
                 </button>
               </div>
+              </form>
               <div className="form-line">
                 <input
                   id="login-otp"
