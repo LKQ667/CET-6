@@ -243,6 +243,35 @@ body {
   min-height: 220px;
 }
 
+.auth-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.auth-block {
+  border: 1px solid rgba(153, 193, 241, 0.22);
+  border-radius: 12px;
+  padding: 0.65rem;
+  background: rgba(7, 16, 28, 0.55);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.auth-block h3,
+.auth-otp-block h3 {
+  margin: 0;
+  font-size: 0.96rem;
+  letter-spacing: 0.02rem;
+  color: var(--text-main);
+}
+
+.auth-otp-block {
+  margin-top: 0.65rem;
+  border-top: 1px dashed rgba(153, 193, 241, 0.28);
+  padding-top: 0.65rem;
+}
+
 .score-row {
   margin-top: 0.25rem;
   display: flex;
@@ -774,6 +803,10 @@ a:focus-visible {
   .form-line {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .auth-split {
+    grid-template-columns: 1fr;
   }
 
   .task-item > button,

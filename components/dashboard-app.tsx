@@ -161,9 +161,12 @@ function getFlameColor(streakDays: number) {
 
 export function DashboardApp() {
   const [auth, setAuth] = useState<AuthState | null>(null);
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpCooldown, setOtpCooldown] = useState(0);
   const [taskData, setTaskData] = useState<TaskTodayResponse | null>(null);
   const [vocab, setVocab] = useState<VocabEntry[]>([]);
   const [selectedVocabId, setSelectedVocabId] = useState<string>("");
@@ -261,6 +264,16 @@ export function DashboardApp() {
     loadAuthedData(auth).catch(console.error);
   }, [auth]);
 
+  useEffect(() => {
+    if (otpCooldown <= 0) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setOtpCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [otpCooldown]);
+
   function applyAuthState(data: { user: { id: string; email: string }; accessToken: string; syncWarning?: string | null }) {
       const nextAuth: AuthState = {
         userId: data.user.id,
@@ -280,9 +293,10 @@ export function DashboardApp() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: registerEmail, password: registerPassword })
       });
       const data = await parseApi<{ message: string }>(response);
+      setEmail(registerEmail);
       setMessage(data.message || "注册成功，请使用密码登录。");
     } catch (error) {
       setMessage(`注册失败：${String(error)}`);
@@ -315,6 +329,9 @@ export function DashboardApp() {
   }
 
   async function sendOtp() {
+    if (otpCooldown > 0) {
+      return;
+    }
     setActionBusy(true);
     try {
       const response = await fetch("/api/auth/send-otp", {
@@ -325,8 +342,12 @@ export function DashboardApp() {
         body: JSON.stringify({ email })
       });
       await parseApi<{ sent?: boolean; mockMode?: boolean; message?: string }>(response);
+      setOtpCooldown(60);
       setMessage("验证码已发送，请使用邮件中的最新验证码（通常为 6~8 位）。");
     } catch (error) {
+      if (String(error).includes("429") || String(error).includes("频繁")) {
+        setOtpCooldown(60);
+      }
       setMessage(`发送验证码失败：${String(error)}`);
     } finally {
       setActionBusy(false);
@@ -687,55 +708,108 @@ export function DashboardApp() {
         {!auth ? (
           <section className="guest-grid">
             <article className="panel auth-panel">
-              <h2>账号登录（密码优先）</h2>
-              <p className="panel-sub">先注册账号，再用密码登录。验证码方式保留为备用。</p>
-              <form autoComplete="on" onSubmit={(e) => { e.preventDefault(); loginWithPassword(); }}>
-              <div className="form-line">
-                <input
-                  id="login-email"
-                  name="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder={zhCN.ui.emailPlaceholder}
-                  type="email"
-                />
-                <button onClick={registerWithPassword} disabled={actionBusy || !email || password.length < 6} type="button">
-                  注册账号
-                </button>
+              <h2>账号入口（注册与登录分离）</h2>
+              <p className="panel-sub">先注册账号，再用密码登录。验证码作为第二登录方式。</p>
+              <div className="auth-split">
+                <form
+                  className="auth-block"
+                  autoComplete="on"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void registerWithPassword();
+                  }}
+                >
+                  <h3>注册账号</h3>
+                  <div className="form-line">
+                    <input
+                      id="register-email"
+                      name="register-email"
+                      autoComplete="email"
+                      value={registerEmail}
+                      onChange={(event) => setRegisterEmail(event.target.value)}
+                      placeholder="注册邮箱"
+                      type="email"
+                    />
+                  </div>
+                  <div className="form-line">
+                    <input
+                      id="register-password"
+                      name="register-password"
+                      autoComplete="new-password"
+                      value={registerPassword}
+                      onChange={(event) => setRegisterPassword(event.target.value)}
+                      placeholder="注册密码（至少 6 位）"
+                      type="password"
+                    />
+                  </div>
+                  <button disabled={actionBusy || !registerEmail || registerPassword.length < 6} type="submit">
+                    注册账号
+                  </button>
+                </form>
+
+                <form
+                  className="auth-block"
+                  autoComplete="on"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void loginWithPassword();
+                  }}
+                >
+                  <h3>密码登录</h3>
+                  <div className="form-line">
+                    <input
+                      id="login-email"
+                      name="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder={zhCN.ui.emailPlaceholder}
+                      type="email"
+                    />
+                  </div>
+                  <div className="form-line">
+                    <input
+                      id="login-password"
+                      name="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="输入密码（至少 6 位）"
+                      type="password"
+                    />
+                  </div>
+                  <button disabled={actionBusy || !email || password.length < 6} type="submit">
+                    密码登录
+                  </button>
+                </form>
               </div>
-              <div className="form-line">
-                <input
-                  id="login-password"
-                  name="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="输入密码（至少 6 位）"
-                  type="password"
-                />
-                <button disabled={actionBusy || !email || password.length < 6} type="submit">
-                  密码登录
-                </button>
+
+              <div className="auth-otp-block">
+                <h3>验证码登录（备用）</h3>
+                <div className="form-line">
+                  <input
+                    id="login-otp"
+                    name="otp"
+                    autoComplete="one-time-code"
+                    value={otp}
+                    onChange={(event) => setOtp(event.target.value)}
+                    placeholder={zhCN.ui.otpPlaceholder}
+                    type="text"
+                  />
+                  <button
+                    className="ghost-btn"
+                    onClick={sendOtp}
+                    disabled={actionBusy || !email || otpCooldown > 0}
+                    type="button"
+                  >
+                    {otpCooldown > 0 ? `${otpCooldown}s 后重发` : "发送验证码"}
+                  </button>
+                  <button onClick={verifyOtp} disabled={actionBusy || !otp || !email} type="button">
+                    {zhCN.ui.loginSync}
+                  </button>
+                </div>
+                <p className="panel-sub">请填写邮件中的最新验证码（一次性，通常为 6~8 位）。</p>
               </div>
-              </form>
-              <div className="form-line">
-                <input
-                  id="login-otp"
-                  name="otp"
-                  value={otp}
-                  onChange={(event) => setOtp(event.target.value)}
-                  placeholder={zhCN.ui.otpPlaceholder}
-                  type="text"
-                />
-                <button className="ghost-btn" onClick={sendOtp} disabled={actionBusy || !email} type="button">
-                  发送验证码
-                </button>
-                <button onClick={verifyOtp} disabled={actionBusy || !otp} type="button">
-                  {zhCN.ui.loginSync}
-                </button>
-              </div>
-              <p className="panel-sub">请填写邮件中的最新验证码（一次性，通常为 6~8 位）。</p>
             </article>
 
             <article className="panel resource-panel">

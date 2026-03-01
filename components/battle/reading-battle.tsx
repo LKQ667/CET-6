@@ -60,7 +60,7 @@ export function ReadingBattle({ task, question, onComplete, onCancel }: ReadingB
     if (!result.ok) {
       setSpeaking(false);
     }
-  }, []);
+  }, [activePassage.en]);
 
   useEffect(() => {
     return () => {
@@ -76,7 +76,7 @@ export function ReadingBattle({ task, question, onComplete, onCancel }: ReadingB
       setQIndex(prev => prev + 1);
       setTimeLeft(TIME_PER_Q);
     }
-  }, [qIndex]);
+  }, [qIndex, activeQuestions.length]);
 
   // Timer
   useEffect(() => {

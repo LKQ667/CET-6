@@ -1169,33 +1169,28 @@ export async function getQuestionForBattle(
       .gte("last_answered_at", threeDaysAgo.toISOString());
     const excludeIds = (recentProgress ?? []).map((r) => String(r.question_id));
 
-    // 从题库中随机抽一道未答过的题
-    let query = supabase
+    // 先取题型下所有激活题，再在内存做去重过滤，避免 in(...) 拼接导致的兼容性问题
+    const { data: allCandidates, error: qError } = await supabase
       .from("question_bank")
       .select("*")
       .eq("task_type", taskType)
       .eq("is_active", true);
-    if (excludeIds.length > 0) {
-      query = query.not("id", "in", `(${excludeIds.join(",")})`);
-    }
-    const { data: candidates, error: qError } = await query;
     if (qError) {
       throw new Error(`题库查询失败: ${qError.message}`);
     }
+
+    const excludedSet = new Set(excludeIds);
+    const candidates = (allCandidates ?? []).filter(
+      (row) => !excludedSet.has(String(row.id))
+    );
 
     let selected: Record<string, unknown> | null = null;
     if (candidates && candidates.length > 0) {
       selected = candidates[Math.floor(Math.random() * candidates.length)];
     } else {
-      // 所有题都答过了，回退到最久没答的
-      const { data: oldest } = await supabase
-        .from("question_bank")
-        .select("*")
-        .eq("task_type", taskType)
-        .eq("is_active", true)
-        .limit(10);
-      if (oldest && oldest.length > 0) {
-        selected = oldest[Math.floor(Math.random() * oldest.length)];
+      // 所有题都答过了，回退到同题型题库中随机旧题
+      if (allCandidates && allCandidates.length > 0) {
+        selected = allCandidates[Math.floor(Math.random() * allCandidates.length)];
       }
     }
 
