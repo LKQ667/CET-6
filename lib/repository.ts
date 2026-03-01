@@ -100,6 +100,17 @@ function hashBuffer(buffer: Buffer) {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
+function shouldUseMockFallback(error: unknown) {
+  const message = String(error ?? "");
+  return (
+    message.includes("Could not find the table") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist") ||
+    message.includes("relation") ||
+    message.includes("fetch failed")
+  );
+}
+
 async function readBuiltinPdf(fileName: string) {
   const primaryPath = path.join(process.cwd(), "public", "resources", fileName);
   try {
@@ -134,36 +145,43 @@ export async function getBaselineScore(userId: string): Promise<BaselineScore> {
   if (!isSupabaseReady()) {
     return mockStore.getBaselineScore(userId);
   }
-  await ensureUserMeta(userId);
-  const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase
-    .from("scores_baseline")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) {
-    throw new Error(`查询 baseline 失败: ${error.message}`);
-  }
-  if (!data) {
-    const initial = {
-      user_id: userId,
-      total_score: defaultBaseline.total,
-      listening_score: defaultBaseline.listening,
-      reading_score: defaultBaseline.reading,
-      writing_translation_score: defaultBaseline.writingTranslation
-    };
-    const { error: insertError } = await supabase.from("scores_baseline").insert(initial);
-    if (insertError) {
-      throw new Error(`创建 baseline 失败: ${insertError.message}`);
+  try {
+    await ensureUserMeta(userId);
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("scores_baseline")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`查询 baseline 失败: ${error.message}`);
     }
-    return defaultBaseline;
+    if (!data) {
+      const initial = {
+        user_id: userId,
+        total_score: defaultBaseline.total,
+        listening_score: defaultBaseline.listening,
+        reading_score: defaultBaseline.reading,
+        writing_translation_score: defaultBaseline.writingTranslation
+      };
+      const { error: insertError } = await supabase.from("scores_baseline").insert(initial);
+      if (insertError) {
+        throw new Error(`创建 baseline 失败: ${insertError.message}`);
+      }
+      return defaultBaseline;
+    }
+    return {
+      total: Number(data.total_score),
+      listening: Number(data.listening_score),
+      reading: Number(data.reading_score),
+      writingTranslation: Number(data.writing_translation_score)
+    };
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.getBaselineScore(userId);
+    }
+    throw error;
   }
-  return {
-    total: Number(data.total_score),
-    listening: Number(data.listening_score),
-    reading: Number(data.reading_score),
-    writingTranslation: Number(data.writing_translation_score)
-  };
 }
 
 async function getOrCreateGameProfileCore(userId: string) {
@@ -338,56 +356,63 @@ export async function getOrCreateTodayTasks(userId: string, date = getBeijingDat
   if (!isSupabaseReady()) {
     return mockStore.getTodayTasks(userId, date);
   }
-  const supabase = getSupabaseServiceClient();
-  const baseline = await getBaselineScore(userId);
+  try {
+    const supabase = getSupabaseServiceClient();
+    const baseline = await getBaselineScore(userId);
 
-  const { data: existing, error: queryError } = await supabase
-    .from("daily_tasks")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("task_date", date)
-    .order("created_at", { ascending: true });
-
-  if (queryError) {
-    throw new Error(`读取今日任务失败: ${queryError.message}`);
-  }
-
-  let tasks = (existing ?? []).map(mapTaskRow);
-  if (tasks.length === 0) {
-    const generated = buildDailyTasks({
-      userId,
-      taskDate: date,
-      baseline
-    });
-    const insertRows = generated.map((task) => ({
-      id: task.id,
-      user_id: userId,
-      task_date: date,
-      task_type: task.taskType,
-      title: task.title,
-      description: task.description,
-      estimated_minutes: task.estimatedMinutes,
-      completed: false,
-      phase_code: task.phaseCode
-    }));
-    const { data: inserted, error: insertError } = await supabase
+    const { data: existing, error: queryError } = await supabase
       .from("daily_tasks")
-      .insert(insertRows)
-      .select("*");
-    if (insertError) {
-      throw new Error(`写入今日任务失败: ${insertError.message}`);
-    }
-    tasks = (inserted ?? []).map(mapTaskRow);
-  }
+      .select("*")
+      .eq("user_id", userId)
+      .eq("task_date", date)
+      .order("created_at", { ascending: true });
 
-  const profile = await getOrCreateGameProfileCore(userId);
-  return {
-    date,
-    phaseCode: tasks[0]?.phaseCode ?? phaseByDate(date),
-    totalEstimatedMinutes: tasks.reduce((sum, task) => sum + task.estimatedMinutes, 0),
-    streakDays: profile.streakDays,
-    tasks
-  };
+    if (queryError) {
+      throw new Error(`读取今日任务失败: ${queryError.message}`);
+    }
+
+    let tasks = (existing ?? []).map(mapTaskRow);
+    if (tasks.length === 0) {
+      const generated = buildDailyTasks({
+        userId,
+        taskDate: date,
+        baseline
+      });
+      const insertRows = generated.map((task) => ({
+        id: task.id,
+        user_id: userId,
+        task_date: date,
+        task_type: task.taskType,
+        title: task.title,
+        description: task.description,
+        estimated_minutes: task.estimatedMinutes,
+        completed: false,
+        phase_code: task.phaseCode
+      }));
+      const { data: inserted, error: insertError } = await supabase
+        .from("daily_tasks")
+        .insert(insertRows)
+        .select("*");
+      if (insertError) {
+        throw new Error(`写入今日任务失败: ${insertError.message}`);
+      }
+      tasks = (inserted ?? []).map(mapTaskRow);
+    }
+
+    const profile = await getOrCreateGameProfileCore(userId);
+    return {
+      date,
+      phaseCode: tasks[0]?.phaseCode ?? phaseByDate(date),
+      totalEstimatedMinutes: tasks.reduce((sum, task) => sum + task.estimatedMinutes, 0),
+      streakDays: profile.streakDays,
+      tasks
+    };
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.getTodayTasks(userId, date);
+    }
+    throw error;
+  }
 }
 
 export async function completeTask(userId: string, taskId: string, date = getBeijingDateString()): Promise<{ task: DailyTask; reward: TaskReward } | null> {
@@ -508,123 +533,150 @@ export async function getGameProfile(userId: string, date = getBeijingDateString
   if (!isSupabaseReady()) {
     return mockStore.getGameProfile(userId, date);
   }
+  try {
+    const profile = await getOrCreateGameProfileCore(userId);
+    const dailyLog = await getOrCreateDailyLog(userId, date);
+    const taskData = await getOrCreateTodayTasks(userId, date);
+    const remaining = taskData.tasks.filter((task) => !task.completed).length;
 
-  const profile = await getOrCreateGameProfileCore(userId);
-  const dailyLog = await getOrCreateDailyLog(userId, date);
-  const taskData = await getOrCreateTodayTasks(userId, date);
-  const remaining = taskData.tasks.filter((task) => !task.completed).length;
-
-  return {
-    userId,
-    level: profile.level,
-    exp: profile.exp,
-    coins: profile.coins,
-    streakDays: profile.streakDays,
-    todayExp: dailyLog.expGained,
-    todayCoins: dailyLog.coinsGained,
-    lastActiveDate: profile.lastActiveDate,
-    bossState: {
-      isBossDay: isBossDay(date),
-      bossName: zhCN.game.bossName,
-      hp: isBossDay(date) ? Math.max(0, remaining * 25) : 100,
-      maxHp: 100,
-      defeated: isBossDay(date) ? dailyLog.bossDefeated : false,
-      checklist: [...zhCN.game.bossChecklist],
-      rewardExp: 80
+    return {
+      userId,
+      level: profile.level,
+      exp: profile.exp,
+      coins: profile.coins,
+      streakDays: profile.streakDays,
+      todayExp: dailyLog.expGained,
+      todayCoins: dailyLog.coinsGained,
+      lastActiveDate: profile.lastActiveDate,
+      bossState: {
+        isBossDay: isBossDay(date),
+        bossName: zhCN.game.bossName,
+        hp: isBossDay(date) ? Math.max(0, remaining * 25) : 100,
+        maxHp: 100,
+        defeated: isBossDay(date) ? dailyLog.bossDefeated : false,
+        checklist: [...zhCN.game.bossChecklist],
+        rewardExp: 80
+      }
+    };
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.getGameProfile(userId, date);
     }
-  };
+    throw error;
+  }
 }
 
 export async function getVocabToday(limit = 12) {
   if (!isSupabaseReady()) {
     return mockStore.getVocabToday().slice(0, limit);
   }
-  const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase
-    .from("vocab_entries")
-    .select("*, vocab_provenance(*)")
-    .eq("is_verified", true)
-    .order("frequency_in_papers", { ascending: false })
-    .limit(limit);
-  if (error) {
-    throw new Error(`查询词汇失败: ${error.message}`);
+  try {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("vocab_entries")
+      .select("*, vocab_provenance(*)")
+      .eq("is_verified", true)
+      .order("frequency_in_papers", { ascending: false })
+      .limit(limit);
+    if (error) {
+      throw new Error(`查询词汇失败: ${error.message}`);
+    }
+    return data ?? [];
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.getVocabToday().slice(0, limit);
+    }
+    throw error;
   }
-  return data ?? [];
 }
 
 export async function getVocabProvenance(vocabId: string): Promise<VocabProvenance[]> {
   if (!isSupabaseReady()) {
     return mockStore.getVocabProvenance(vocabId);
   }
-  const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase
-    .from("vocab_provenance")
-    .select("*")
-    .eq("vocab_entry_id", vocabId)
-    .order("exam_year", { ascending: false });
-  if (error) {
-    throw new Error(`查询出处失败: ${error.message}`);
+  try {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("vocab_provenance")
+      .select("*")
+      .eq("vocab_entry_id", vocabId)
+      .order("exam_year", { ascending: false });
+    if (error) {
+      throw new Error(`查询出处失败: ${error.message}`);
+    }
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      vocabEntryId: String(row.vocab_entry_id),
+      examYear: Number(row.exam_year),
+      examMonth: Number(row.exam_month) as 6 | 12,
+      paperCode: String(row.paper_code),
+      questionType: String(row.question_type),
+      sourceUrl: String(row.source_url),
+      sourceSnippet: String(row.source_snippet),
+      sourceFile: (row.source_file as string | null) ?? null,
+      createdAt: String(row.created_at ?? "")
+    }));
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.getVocabProvenance(vocabId);
+    }
+    throw error;
   }
-  return (data ?? []).map((row) => ({
-    id: String(row.id),
-    vocabEntryId: String(row.vocab_entry_id),
-    examYear: Number(row.exam_year),
-    examMonth: Number(row.exam_month) as 6 | 12,
-    paperCode: String(row.paper_code),
-    questionType: String(row.question_type),
-    sourceUrl: String(row.source_url),
-    sourceSnippet: String(row.source_snippet),
-    sourceFile: (row.source_file as string | null) ?? null,
-    createdAt: String(row.created_at ?? "")
-  }));
 }
 
 export async function getOrCreateReminderPreference(userId: string): Promise<ReminderPreference> {
   if (!isSupabaseReady()) {
     return mockStore.getReminderPreference(userId);
   }
-  const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase
-    .from("reminder_preferences")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) {
-    throw new Error(`读取提醒偏好失败: ${error.message}`);
-  }
-  if (data) {
-    return {
-      id: String(data.id),
-      userId: String(data.user_id),
-      emailEnabled: Boolean(data.email_enabled),
-      pushEnabled: Boolean(data.push_enabled),
-      reminderTimes: (data.reminder_times as string[]) ?? ["12:00", "21:40"],
-      timezone: String(data.timezone ?? "Asia/Shanghai"),
-      createdAt: String(data.created_at ?? ""),
-      updatedAt: String(data.updated_at ?? "")
+  try {
+    const supabase = getSupabaseServiceClient();
+    const { data, error } = await supabase
+      .from("reminder_preferences")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`读取提醒偏好失败: ${error.message}`);
+    }
+    if (data) {
+      return {
+        id: String(data.id),
+        userId: String(data.user_id),
+        emailEnabled: Boolean(data.email_enabled),
+        pushEnabled: Boolean(data.push_enabled),
+        reminderTimes: (data.reminder_times as string[]) ?? ["12:00", "21:40"],
+        timezone: String(data.timezone ?? "Asia/Shanghai"),
+        createdAt: String(data.created_at ?? ""),
+        updatedAt: String(data.updated_at ?? "")
+      };
+    }
+    const createdId = randomUUID();
+    const insertRow = {
+      id: createdId,
+      user_id: userId,
+      email_enabled: true,
+      push_enabled: true,
+      reminder_times: ["12:00", "21:40"],
+      timezone: "Asia/Shanghai"
     };
+    const { error: insertError } = await supabase.from("reminder_preferences").insert(insertRow);
+    if (insertError) {
+      throw new Error(`创建提醒偏好失败: ${insertError.message}`);
+    }
+    return {
+      id: createdId,
+      userId,
+      emailEnabled: true,
+      pushEnabled: true,
+      reminderTimes: ["12:00", "21:40"],
+      timezone: "Asia/Shanghai"
+    };
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.getReminderPreference(userId);
+    }
+    throw error;
   }
-  const createdId = randomUUID();
-  const insertRow = {
-    id: createdId,
-    user_id: userId,
-    email_enabled: true,
-    push_enabled: true,
-    reminder_times: ["12:00", "21:40"],
-    timezone: "Asia/Shanghai"
-  };
-  const { error: insertError } = await supabase.from("reminder_preferences").insert(insertRow);
-  if (insertError) {
-    throw new Error(`创建提醒偏好失败: ${insertError.message}`);
-  }
-  return {
-    id: createdId,
-    userId,
-    emailEnabled: true,
-    pushEnabled: true,
-    reminderTimes: ["12:00", "21:40"],
-    timezone: "Asia/Shanghai"
-  };
 }
 
 export async function updateReminderPreference(
@@ -634,33 +686,40 @@ export async function updateReminderPreference(
   if (!isSupabaseReady()) {
     return mockStore.setReminderPreference(userId, patch);
   }
-  const supabase = getSupabaseServiceClient();
-  const existing = await getOrCreateReminderPreference(userId);
-  const { data, error } = await supabase
-    .from("reminder_preferences")
-    .update({
-      email_enabled: patch.emailEnabled,
-      push_enabled: patch.pushEnabled,
-      reminder_times: patch.reminderTimes,
-      timezone: patch.timezone,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", existing.id)
-    .select("*")
-    .single();
-  if (error) {
-    throw new Error(`更新提醒偏好失败: ${error.message}`);
+  try {
+    const supabase = getSupabaseServiceClient();
+    const existing = await getOrCreateReminderPreference(userId);
+    const { data, error } = await supabase
+      .from("reminder_preferences")
+      .update({
+        email_enabled: patch.emailEnabled,
+        push_enabled: patch.pushEnabled,
+        reminder_times: patch.reminderTimes,
+        timezone: patch.timezone,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) {
+      throw new Error(`更新提醒偏好失败: ${error.message}`);
+    }
+    return {
+      id: String(data.id),
+      userId: String(data.user_id),
+      emailEnabled: Boolean(data.email_enabled),
+      pushEnabled: Boolean(data.push_enabled),
+      reminderTimes: (data.reminder_times as string[]) ?? [],
+      timezone: String(data.timezone),
+      createdAt: String(data.created_at ?? ""),
+      updatedAt: String(data.updated_at ?? "")
+    };
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.setReminderPreference(userId, patch);
+    }
+    throw error;
   }
-  return {
-    id: String(data.id),
-    userId: String(data.user_id),
-    emailEnabled: Boolean(data.email_enabled),
-    pushEnabled: Boolean(data.push_enabled),
-    reminderTimes: (data.reminder_times as string[]) ?? [],
-    timezone: String(data.timezone),
-    createdAt: String(data.created_at ?? ""),
-    updatedAt: String(data.updated_at ?? "")
-  };
 }
 
 export async function savePushSubscription(userId: string, subscription: Record<string, unknown>) {
