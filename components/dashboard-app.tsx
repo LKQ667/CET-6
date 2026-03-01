@@ -114,6 +114,23 @@ function resourceActionLabel(item: ResourceItem) {
   return zhCN.ui.externalEntry;
 }
 
+function markTaskAsCompletedInSnapshot(snapshot: TaskTodayResponse, completedTask: DailyTask) {
+  return {
+    ...snapshot,
+    tasks: snapshot.tasks.map((task) => {
+      if (task.id !== completedTask.id) {
+        return task;
+      }
+      return {
+        ...task,
+        ...completedTask,
+        completed: true,
+        completedAt: completedTask.completedAt ?? task.completedAt ?? new Date().toISOString()
+      };
+    })
+  };
+}
+
 async function parseApi<T>(response: Response) {
   const json = (await response.json()) as ApiResponse<T>;
   if (!json.ok || json.data === undefined) {
@@ -321,6 +338,7 @@ export function DashboardApp() {
       setBattleReward(data.reward);
       setMessage(`${zhCN.ui.taskDone} ${data.reward.note}`);
       setShowLootModal(true);
+      setTaskData((prev) => (prev ? markTaskAsCompletedInSnapshot(prev, data.task) : prev));
       
       confetti({
         particleCount: 150,
@@ -329,16 +347,25 @@ export function DashboardApp() {
         colors: ['#f2c46d', '#63d3ff', '#7fefbd', '#ff9c8c']
       });
 
-      const [nextTasksRes, nextGameRes] = await Promise.all([
-        fetch("/api/tasks/today", { headers: authHeaders(auth) }),
-        fetch("/api/game/profile", { headers: authHeaders(auth) })
+      const [tasksRefresh, profileRefresh] = await Promise.allSettled([
+        (async () => {
+          const nextTasksRes = await fetch("/api/tasks/today", { headers: authHeaders(auth) });
+          const nextTasks = await parseApi<TaskTodayResponse>(nextTasksRes);
+          setTaskData(markTaskAsCompletedInSnapshot(nextTasks, data.task));
+        })(),
+        (async () => {
+          const nextGameRes = await fetch("/api/game/profile", { headers: authHeaders(auth) });
+          const nextGame = await parseApi<GameProfile>(nextGameRes);
+          setGameProfile(nextGame);
+        })()
       ]);
-      const [nextTasks, nextGame] = await Promise.all([
-        parseApi<TaskTodayResponse>(nextTasksRes),
-        parseApi<GameProfile>(nextGameRes)
-      ]);
-      setTaskData(nextTasks);
-      setGameProfile(nextGame);
+
+      if (tasksRefresh.status === "rejected" || profileRefresh.status === "rejected") {
+        console.warn("任务完成后刷新部分数据失败，已保留本地完成态。", {
+          taskRefreshError: tasksRefresh.status === "rejected" ? String(tasksRefresh.reason) : null,
+          profileRefreshError: profileRefresh.status === "rejected" ? String(profileRefresh.reason) : null
+        });
+      }
     } catch (error) {
       setMessage(`任务完成失败：${String(error)}`);
     } finally {

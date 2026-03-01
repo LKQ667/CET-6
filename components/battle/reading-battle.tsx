@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ScanSearch, X, Timer, Volume2 } from "lucide-react";
 import type { DailyTask } from "@/lib/types";
 import { sfxHit, sfxWrong, sfxTick, sfxVictory } from "@/lib/sfx";
+import { cancelSpeech, speakText } from "@/lib/tts";
 
 interface ReadingBattleProps {
   task: DailyTask;
@@ -37,21 +38,23 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
   const hpPerQ = maxHp / QUESTIONS.length;
   const cleared = qIndex >= QUESTIONS.length;
 
-  const speakPassage = useCallback(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(PASSAGE.en);
-    utterance.lang = "en-US";
-    utterance.rate = 0.85;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+  const speakPassage = useCallback(async () => {
+    setSpeaking(true);
+    const result = await speakText(PASSAGE.en, {
+      lang: "en-US",
+      rate: 0.85,
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+      onError: () => setSpeaking(false)
+    });
+    if (!result.ok) {
+      setSpeaking(false);
+    }
   }, []);
 
   useEffect(() => {
     return () => {
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      cancelSpeech();
     };
   }, []);
 
@@ -188,7 +191,9 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
                   <motion.button
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    onClick={speakPassage}
+                    onClick={() => {
+                      void speakPassage();
+                    }}
                     disabled={speaking}
                     style={{
                       display: "flex", alignItems: "center", gap: 6,

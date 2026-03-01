@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AudioLines, X, Volume2 } from "lucide-react";
 import type { DailyTask } from "@/lib/types";
 import { sfxTilePlace, sfxWrong, sfxVictory } from "@/lib/sfx";
+import { cancelSpeech, speakText } from "@/lib/tts";
 
 interface ListeningBattleProps {
   task: DailyTask;
@@ -26,6 +27,7 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
   const [hp, setHp] = useState(100);
   const [playCount, setPlayCount] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  const [audioError, setAudioError] = useState("");
   const [cleared, setCleared] = useState(false);
 
   const originalWords = sentence.split(" ");
@@ -41,26 +43,33 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
   }, [sentence]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // TTS speak function
-  const speakSentence = useCallback(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(sentence);
-    utterance.lang = "en-US";
-    utterance.rate = 0.85;
-    utterance.pitch = 1;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-    setPlayCount(prev => prev + 1);
+  const speakSentence = useCallback(async () => {
+    setAudioError("");
+    setSpeaking(true);
+    const result = await speakText(sentence, {
+      lang: "en-US",
+      rate: 0.85,
+      pitch: 1,
+      onStart: () => setSpeaking(true),
+      onEnd: () => setSpeaking(false),
+      onError: () => setSpeaking(false)
+    });
+    if (result.ok) {
+      setPlayCount((prev) => prev + 1);
+      return;
+    }
+    setSpeaking(false);
+    setAudioError("语音播放失败，请重试或检查浏览器语音权限。");
   }, [sentence]);
 
   // Auto-play on mount
   useEffect(() => {
-    const timer = setTimeout(() => speakSentence(), 600);
+    const timer = setTimeout(() => {
+      void speakSentence();
+    }, 600);
     return () => {
       clearTimeout(timer);
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      cancelSpeech();
     };
   }, [speakSentence]);
 
@@ -145,7 +154,9 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
           borderBottom: "1px solid rgba(8,145,178,0.1)"
         }}>
           <button
-            onClick={speakSentence}
+            onClick={() => {
+              void speakSentence();
+            }}
             disabled={speaking}
             style={{
               display: "flex", alignItems: "center", gap: 8,
@@ -165,6 +176,19 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
             已播放 {playCount} 次
           </span>
         </div>
+        {audioError ? (
+          <div
+            style={{
+              padding: "0.5rem 1.8rem",
+              color: "#fda4af",
+              fontSize: "0.82rem",
+              borderBottom: "1px solid rgba(244,63,94,0.2)",
+              background: "rgba(127,29,29,0.12)"
+            }}
+          >
+            {audioError}
+          </div>
+        ) : null}
 
         {/* Arena */}
         <div style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem", minHeight: 400 }}>

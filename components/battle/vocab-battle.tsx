@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Swords, X } from "lucide-react";
 import type { DailyTask, VocabEntry } from "@/lib/types";
 import { sfxKeystroke, sfxWrong, sfxHit, sfxVictory } from "@/lib/sfx";
+import { speakText } from "@/lib/tts";
 
 const MOCK_WORDS = [
   { en: "inevitable", ph: "/ɪnˈɛvɪtəbəl/", zh: "不可避免的" },
@@ -68,12 +69,7 @@ export function VocabBattle({ task, vocabList, onComplete, onCancel }: VocabBatt
         sfxHit();
         
         // Read out the word when completed
-        if (typeof window !== "undefined" && window.speechSynthesis) {
-          const u = new SpeechSynthesisUtterance(targetWord);
-          u.lang = "en-US";
-          u.rate = 0.9;
-          window.speechSynthesis.speak(u);
-        }
+        void speakText(targetWord, { lang: "en-US", rate: 0.9 });
 
         setHp(prev => Math.max(0, prev - hpPerWord));
         setTimeout(() => {
