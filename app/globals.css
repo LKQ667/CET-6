@@ -656,6 +656,7 @@ button:disabled,
 }
 
 input[type="email"],
+input[type="password"],
 input[type="text"],
 input[type="file"] {
   flex: 1;
@@ -1072,4 +1073,3 @@ a:focus-visible {
     scroll-behavior: auto !important;
   }
 }
-

@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AudioLines, X, Volume2 } from "lucide-react";
-import type { DailyTask } from "@/lib/types";
+import type { DailyTask, QuestionBankItem } from "@/lib/types";
 import { sfxTilePlace, sfxWrong, sfxVictory } from "@/lib/sfx";
 import { cancelSpeech, speakText } from "@/lib/tts";
 
 interface ListeningBattleProps {
   task: DailyTask;
+  question?: QuestionBankItem | null;
   onComplete: (taskId: string) => void;
   onCancel: () => void;
 }
@@ -32,8 +33,16 @@ const SENTENCES = [
   }
 ];
 
-export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleProps) {
-  const [sentenceObj] = useState(() => SENTENCES[Math.floor(Math.random() * SENTENCES.length)]);
+export function ListeningBattle({ task, question, onComplete, onCancel }: ListeningBattleProps) {
+  const [sentenceObj] = useState(() => {
+    if (question?.content) {
+      const c = question.content as { en?: string; zh?: string };
+      if (c.en && c.zh) {
+        return { en: c.en, zh: c.zh, audioCandidates: [] as string[] };
+      }
+    }
+    return SENTENCES[Math.floor(Math.random() * SENTENCES.length)];
+  });
   const sentence = sentenceObj.en;
   const audioRef = useRef<HTMLAudioElement | null>(null);
 

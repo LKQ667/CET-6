@@ -137,3 +137,31 @@ export interface DailyPlanProfile {
   prepStartDate: string;
   prepEndDate: string;
 }
+
+// ========== 题库系统 ==========
+
+export interface QuestionBankItem {
+  id: string;
+  taskType: TaskType;
+  content: Record<string, unknown>;
+  difficulty: number;
+}
+
+export interface ListeningContent {
+  en: string;
+  zh: string;
+}
+
+export interface ReadingContent {
+  passage: { en: string; zh: string };
+  questions: { text: string; isTrue: boolean }[];
+}
+
+export interface WritingContent {
+  zh: string;
+  options: { id: string; text: string; isCorrect: boolean; reason: string }[];
+}
+
+export interface BattleContent {
+  question: QuestionBankItem;
+}

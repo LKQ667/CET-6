@@ -1,0 +1,244 @@
+[
+  {
+    "id": "q-listen-01",
+    "taskType": "listening",
+    "content": {
+      "en": "the rapid development of technology has improved human life",
+      "zh": "技术的飞速发展极大地改善了人类的生活。"
+    }
+  },
+  {
+    "id": "q-listen-02",
+    "taskType": "listening",
+    "content": {
+      "en": "climate change poses a severe threat to global ecosystems",
+      "zh": "气候变化对全球生态系统构成了极其严重的威胁。"
+    }
+  },
+  {
+    "id": "q-listen-03",
+    "taskType": "listening",
+    "content": {
+      "en": "education plays a crucial role in shaping modern society",
+      "zh": "教育在塑造现代社会方面起着至关重要的作用。"
+    }
+  },
+  {
+    "id": "q-listen-04",
+    "taskType": "listening",
+    "content": {
+      "en": "artificial intelligence is transforming traditional industries rapidly",
+      "zh": "人工智能正在迅速地改变传统行业。"
+    }
+  },
+  {
+    "id": "q-listen-05",
+    "taskType": "listening",
+    "content": {
+      "en": "maintaining a balanced diet is essential for long term health",
+      "zh": "保持均衡的饮食对长期健康至关重要。"
+    }
+  },
+  {
+    "id": "q-listen-06",
+    "taskType": "listening",
+    "content": {
+      "en": "international cooperation is necessary to address cross border challenges",
+      "zh": "要应对跨境挑战，国际合作不可或缺。"
+    }
+  },
+  {
+    "id": "q-listen-07",
+    "taskType": "listening",
+    "content": {
+      "en": "the growing urbanization trend has led to significant environmental concerns",
+      "zh": "日益加剧的城市化趋势已经引发了严重的环境问题。"
+    }
+  },
+  {
+    "id": "q-listen-08",
+    "taskType": "listening",
+    "content": {
+      "en": "scientific research requires both patience and rigorous methodology",
+      "zh": "科学研究需要耐心和严谨的方法论。"
+    }
+  },
+  {
+    "id": "q-listen-09",
+    "taskType": "listening",
+    "content": {
+      "en": "cultural diversity enriches our understanding of the world",
+      "zh": "文化多样性丰富了我们对世界的理解。"
+    }
+  },
+  {
+    "id": "q-listen-10",
+    "taskType": "listening",
+    "content": {
+      "en": "renewable energy sources are becoming increasingly cost effective",
+      "zh": "可再生能源正变得越来越具有成本效益。"
+    }
+  },
+  {
+    "id": "q-read-01",
+    "taskType": "reading",
+    "content": {
+      "passage": {
+        "en": "Some people argue that the rapid advancement of artificial intelligence will lead to widespread job displacement. However, historical evidence suggests that technological revolutions often create more jobs than they destroy, albeit requiring new sets of skills.",
+        "zh": "一些人认为，人工智能的飞速发展将导致大规模的失业。然而，历史证据表明，技术革命创造的就业岗位往往多于它们所破坏的岗位，尽管这要求劳动者掌握全新的技能组合。"
+      },
+      "questions": [
+        { "text": "AI advancement will definitely cause permanent mass unemployment.", "isTrue": false },
+        { "text": "Technological revolutions usually create new job opportunities.", "isTrue": true },
+        { "text": "New skill sets are often required when new technologies emerge.", "isTrue": true }
+      ]
+    }
+  },
+  {
+    "id": "q-read-02",
+    "taskType": "reading",
+    "content": {
+      "passage": {
+        "en": "The concept of remote work has evolved significantly over the past decade. While it offers flexibility and eliminates commuting time, critics point out that it can lead to social isolation and blurred boundaries between work and personal life.",
+        "zh": "远程办公的概念在过去十年中发生了重大演变。虽然它提供了灵活性并消除了通勤时间，但批评者指出，它可能导致社交隔离以及工作与个人生活之间界限模糊。"
+      },
+      "questions": [
+        { "text": "Remote work has remained unchanged over the past decade.", "isTrue": false },
+        { "text": "Remote work completely eliminates all workplace problems.", "isTrue": false },
+        { "text": "One criticism of remote work is the blurring of work-life boundaries.", "isTrue": true }
+      ]
+    }
+  },
+  {
+    "id": "q-read-03",
+    "taskType": "reading",
+    "content": {
+      "passage": {
+        "en": "Studies have shown that regular physical exercise not only improves cardiovascular health but also enhances cognitive function. Researchers believe that exercise stimulates the release of neurotrophic factors that promote brain cell growth and connectivity.",
+        "zh": "研究表明，规律的体育锻炼不仅能改善心血管健康，还能增强认知功能。研究人员认为，运动能刺激神经营养因子的释放，从而促进脑细胞的生长和连接。"
+      },
+      "questions": [
+        { "text": "Exercise only benefits cardiovascular health.", "isTrue": false },
+        { "text": "Neurotrophic factors may promote brain cell growth.", "isTrue": true },
+        { "text": "Cognitive function can be enhanced through regular exercise.", "isTrue": true }
+      ]
+    }
+  },
+  {
+    "id": "q-read-04",
+    "taskType": "reading",
+    "content": {
+      "passage": {
+        "en": "Ocean pollution has reached alarming levels, with microplastics found even in the deepest ocean trenches. Marine biologists warn that the accumulation of plastic waste threatens not only marine life but also human health through the food chain.",
+        "zh": "海洋污染已达到惊人程度，甚至在最深的海沟中也发现了微塑料。海洋生物学家警告说，塑料废物的积累不仅威胁海洋生物，还通过食物链威胁人类健康。"
+      },
+      "questions": [
+        { "text": "Microplastics are only found in shallow coastal waters.", "isTrue": false },
+        { "text": "Plastic waste can affect human health through the food chain.", "isTrue": true },
+        { "text": "Ocean pollution has reached concerning levels globally.", "isTrue": true }
+      ]
+    }
+  },
+  {
+    "id": "q-read-05",
+    "taskType": "reading",
+    "content": {
+      "passage": {
+        "en": "The digital divide remains a significant barrier to educational equity worldwide. While urban students often have access to high-speed internet and modern devices, many rural communities still lack basic connectivity, widening the gap in learning outcomes.",
+        "zh": "数字鸿沟仍然是全球教育公平的重大障碍。虽然城市学生通常可以使用高速互联网和现代设备，但许多农村社区仍然缺乏基本的网络连接，这加大了学习成果的差距。"
+      },
+      "questions": [
+        { "text": "The digital divide has been completely eliminated.", "isTrue": false },
+        { "text": "Rural communities generally have better internet access than urban areas.", "isTrue": false },
+        { "text": "Lack of connectivity can widen the gap in learning outcomes.", "isTrue": true }
+      ]
+    }
+  },
+  {
+    "id": "q-read-06",
+    "taskType": "reading",
+    "content": {
+      "passage": {
+        "en": "Sleep deprivation has become a widespread issue in modern society. Research indicates that chronic lack of sleep not only impairs memory consolidation and decision-making but also weakens the immune system, increasing susceptibility to various diseases.",
+        "zh": "睡眠不足已成为现代社会的一个普遍问题。研究表明，长期缺乏睡眠不仅会损害记忆巩固和决策能力，还会削弱免疫系统，增加患各种疾病的可能性。"
+      },
+      "questions": [
+        { "text": "Sleep deprivation only affects mental performance.", "isTrue": false },
+        { "text": "Chronic lack of sleep can weaken the immune system.", "isTrue": true },
+        { "text": "Memory consolidation can be impaired by insufficient sleep.", "isTrue": true }
+      ]
+    }
+  },
+  {
+    "id": "q-write-01",
+    "taskType": "writing_translation",
+    "content": {
+      "zh": "尽管面临许多困难，他们还是按时完成了项目。",
+      "options": [
+        { "id": "A", "text": "Despite of many difficulties, they finished the project on time.", "isCorrect": false, "reason": "Despite 不接 of，应为 Despite many difficulties 或 In spite of many difficulties。" },
+        { "id": "B", "text": "Despite facing many difficulties, they finished the project on time.", "isCorrect": true, "reason": "完全正确！Despite + doing / noun 结构地道，主从句逻辑清晰。" },
+        { "id": "C", "text": "Although they faced many difficulties, but they finished the project on time.", "isCorrect": false, "reason": "Although 和 but 不能同时出现在一个句子中。" }
+      ]
+    }
+  },
+  {
+    "id": "q-write-02",
+    "taskType": "writing_translation",
+    "content": {
+      "zh": "随着经济的快速发展，人们的生活水平显著提高了。",
+      "options": [
+        { "id": "A", "text": "With the rapid development of economy, people's living standard has improved significantly.", "isCorrect": false, "reason": "economy 前应加 the，应为 the economy；living standard 应为复数 living standards。" },
+        { "id": "B", "text": "As the economy develops rapidly, people's living standards have improved significantly.", "isCorrect": true, "reason": "正确！As 引导时间/原因状语从句，主语一致，时态恰当。" },
+        { "id": "C", "text": "Because of the rapid development of economy, people's living standard has been improved significantly.", "isCorrect": false, "reason": "improve 用于 living standards 时通常用主动语态而非被动；economy 前缺 the。" }
+      ]
+    }
+  },
+  {
+    "id": "q-write-03",
+    "taskType": "writing_translation",
+    "content": {
+      "zh": "政府应该采取有效措施来保护环境。",
+      "options": [
+        { "id": "A", "text": "The government should take effective measures to protect environment.", "isCorrect": false, "reason": "environment 前需要加 the，特指自然环境。" },
+        { "id": "B", "text": "The government should take effective measures to protect the environment.", "isCorrect": true, "reason": "完全正确！take measures to do sth. 是标准搭配，冠词使用无误。" },
+        { "id": "C", "text": "Government should take effective measures for protecting the environment.", "isCorrect": false, "reason": "Government 前缺冠词 The；measures 后习惯接 to do 而非 for doing。" }
+      ]
+    }
+  },
+  {
+    "id": "q-write-04",
+    "taskType": "writing_translation",
+    "content": {
+      "zh": "毫无疑问，阅读拓宽了我们的视野，丰富了我们的思想。",
+      "options": [
+        { "id": "A", "text": "There is no doubt that reading broadens our horizon and enriches our mind.", "isCorrect": false, "reason": "horizon 用复数 horizons 更地道（broaden one's horizons 固定搭配）；mind 同理可用复数。" },
+        { "id": "B", "text": "There is no doubt that reading broadens our horizons and enriches our minds.", "isCorrect": true, "reason": "正确！There is no doubt that... 引导主语从句结构完整，名词复数用法地道。" },
+        { "id": "C", "text": "Undoubtly, reading broadens our horizons and enriches our minds.", "isCorrect": false, "reason": "Undoubtly 拼写错误，正确拼写为 Undoubtedly。" }
+      ]
+    }
+  },
+  {
+    "id": "q-write-05",
+    "taskType": "writing_translation",
+    "content": {
+      "zh": "只有通过不断的练习，我们才能掌握一门外语。",
+      "options": [
+        { "id": "A", "text": "Only by constant practice, we can master a foreign language.", "isCorrect": false, "reason": "Only + 状语位于句首时主句需倒装，应为 can we master。" },
+        { "id": "B", "text": "Only by constant practice can we master a foreign language.", "isCorrect": true, "reason": "正确！Only + 介词短语置于句首引起部分倒装，语法完美。" },
+        { "id": "C", "text": "Only through constantly practicing we can master a foreign language.", "isCorrect": false, "reason": "同样缺少倒装；constantly practicing 不如 constant practice 简洁地道。" }
+      ]
+    }
+  },
+  {
+    "id": "q-write-06",
+    "taskType": "writing_translation",
+    "content": {
+      "zh": "他建议我们应该更加关注传统文化的传承。",
+      "options": [
+        { "id": "A", "text": "He suggested that we should pay more attention to the inheritance of traditional culture.", "isCorrect": true, "reason": "正确！suggest that sb. (should) do 虚拟语气结构完整，inheritance 搭配正确。" },
+        { "id": "B", "text": "He suggested us to pay more attention to the inheritance of traditional culture.", "isCorrect": false, "reason": "suggest 不能接 sb. to do 结构，应用 that 从句。" },
+        { "id": "C", "text": "He suggested that we paid more attention to inherit traditional culture.", "isCorrect": false, "reason": "suggest 后的 that 从句应用虚拟语气 (should) + 动词原形，不能用过去式 paid；inherit 应改为名词结构。" }
+      ]
+    }
+  }
+]

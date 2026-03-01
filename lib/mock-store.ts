@@ -1,5 +1,6 @@
 ﻿import { randomUUID } from "node:crypto";
 
+import seedQuestions from "@/data/seed-questions.json";
 import seedVocab from "@/data/seed-vocab.json";
 import { OFFICIAL_CET_URL, appConfig, builtinResourceConfig, externalResourceConfig } from "@/lib/config";
 import { buildDailyTasks } from "@/lib/daily-plan";
@@ -10,6 +11,7 @@ import type {
   BuiltinImportResultItem,
   DailyTask,
   GameProfile,
+  QuestionBankItem,
   ReminderPreference,
   ResourceItem,
   TaskReward,
@@ -36,6 +38,12 @@ interface SeedVocabRecord {
     sourceSnippet: string;
   };
 }
+
+type SeedQuestion = {
+  id: string;
+  taskType: string;
+  content: Record<string, unknown>;
+};
 
 type CandidateRecord = {
   id: string;
@@ -81,6 +89,7 @@ const vocabStore: VocabEntry[] = [];
 const provenanceStore: VocabProvenance[] = [];
 const gameProfileStore = new Map<string, GameProfileCore>();
 const gameDailyLogStore = new Map<string, DailyLog>();
+const questionUsageIndex = new Map<string, number>();
 
 let initialized = false;
 
@@ -504,6 +513,23 @@ export const mockStore = {
       candidateCount,
       status,
       reason
+    };
+  },
+  getQuestion: (taskType: string): QuestionBankItem | null => {
+    const questions = (seedQuestions as SeedQuestion[]).filter((q) => q.taskType === taskType);
+    if (questions.length === 0) {
+      return null;
+    }
+    // 用 questionUsageIndex 确保 mock 模式下也轮换题目
+    const key = `mock_q_idx_${taskType}`;
+    const idx = questionUsageIndex.get(key) ?? 0;
+    const q = questions[idx % questions.length];
+    questionUsageIndex.set(key, idx + 1);
+    return {
+      id: q.id,
+      taskType: q.taskType as QuestionBankItem["taskType"],
+      content: q.content as Record<string, unknown>,
+      difficulty: 1
     };
   }
 };

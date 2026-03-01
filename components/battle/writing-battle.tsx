@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Hammer, X } from "lucide-react";
-import type { DailyTask } from "@/lib/types";
+import type { DailyTask, QuestionBankItem } from "@/lib/types";
 import { sfxSlash, sfxWrong, sfxVictory } from "@/lib/sfx";
 
 interface WritingBattleProps {
   task: DailyTask;
+  question?: QuestionBankItem | null;
   onComplete: (taskId: string) => void;
   onCancel: () => void;
 }
@@ -21,7 +22,16 @@ const QUESTION = {
   ]
 };
 
-export function WritingBattle({ task, onComplete, onCancel }: WritingBattleProps) {
+export function WritingBattle({ task, question, onComplete, onCancel }: WritingBattleProps) {
+  const activeQuestion = (() => {
+    if (question?.content) {
+      const c = question.content as { zh?: string; options?: { id: string; text: string; isCorrect: boolean; reason: string }[] };
+      if (c.zh && c.options) {
+        return { zh: c.zh, options: c.options };
+      }
+    }
+    return QUESTION;
+  })();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [slash, setSlash] = useState(false);
   const [shake, setShake] = useState(false);
@@ -124,7 +134,7 @@ export function WritingBattle({ task, onComplete, onCancel }: WritingBattleProps
               fontSize: "1.6rem", fontWeight: 700, letterSpacing: "0.05em",
               color: "white", textShadow: "0 2px 8px rgba(0,0,0,0.4)", margin: 0
             }}>
-              &ldquo;{QUESTION.zh}&rdquo;
+              &ldquo;{activeQuestion.zh}&rdquo;
             </h2>
           </div>
 
@@ -134,7 +144,7 @@ export function WritingBattle({ task, onComplete, onCancel }: WritingBattleProps
             transition={{ duration: 0.3 }}
             style={{ display: "flex", flexDirection: "column", gap: 14 }}
           >
-            {QUESTION.options.map(opt => {
+            {activeQuestion.options.map(opt => {
               const isSelected = selectedId === opt.id;
               let borderColor = "rgba(255,255,255,0.08)";
               let bg = "rgba(255,255,255,0.02)";

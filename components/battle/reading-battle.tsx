@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScanSearch, X, Timer, Volume2 } from "lucide-react";
-import type { DailyTask } from "@/lib/types";
+import type { DailyTask, QuestionBankItem } from "@/lib/types";
 import { sfxHit, sfxWrong, sfxTick, sfxVictory } from "@/lib/sfx";
 import { cancelSpeech, speakText } from "@/lib/tts";
 
 interface ReadingBattleProps {
   task: DailyTask;
+  question?: QuestionBankItem | null;
   onComplete: (taskId: string) => void;
   onCancel: () => void;
 }
@@ -26,7 +27,16 @@ const QUESTIONS = [
 
 const TIME_PER_Q = 60000;
 
-export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps) {
+export function ReadingBattle({ task, question, onComplete, onCancel }: ReadingBattleProps) {
+  const [{ activePassage, activeQuestions }] = useState(() => {
+    if (question?.content) {
+      const c = question.content as { passage?: { en: string; zh: string }; questions?: { text: string; isTrue: boolean }[] };
+      if (c.passage && c.questions) {
+        return { activePassage: c.passage, activeQuestions: c.questions };
+      }
+    }
+    return { activePassage: PASSAGE, activeQuestions: QUESTIONS };
+  });
   const [qIndex, setQIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TIME_PER_Q);
   const [shake, setShake] = useState(false);
@@ -35,12 +45,12 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const maxHp = 100;
-  const hpPerQ = maxHp / QUESTIONS.length;
-  const cleared = qIndex >= QUESTIONS.length;
+  const hpPerQ = maxHp / activeQuestions.length;
+  const cleared = qIndex >= activeQuestions.length;
 
   const speakPassage = useCallback(async () => {
     setSpeaking(true);
-    const result = await speakText(PASSAGE.en, {
+    const result = await speakText(activePassage.en, {
       lang: "en-US",
       rate: 0.85,
       onStart: () => setSpeaking(true),
@@ -59,7 +69,7 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
   }, []);
 
   const goNext = useCallback(() => {
-    if (qIndex + 1 >= QUESTIONS.length) {
+    if (qIndex + 1 >= activeQuestions.length) {
       sfxVictory();
       setQIndex(prev => prev + 1); // trigger cleared
     } else {
@@ -100,7 +110,7 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
     if (cleared) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
-    const currentQ = QUESTIONS[qIndex];
+    const currentQ = activeQuestions[qIndex];
     if (answer === currentQ.isTrue) {
       sfxHit();
       setHp(prev => Math.max(0, prev - hpPerQ));
@@ -214,7 +224,7 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
               color: "rgba(204,251,241,0.85)", fontSize: "1.1rem", lineHeight: 1.7,
               fontFamily: "Georgia, serif", letterSpacing: "0.02em", position: "relative", zIndex: 1, margin: 0
             }}>
-              {PASSAGE.en}
+              {activePassage.en}
             </p>
             <AnimatePresence>
               {cleared && (
@@ -234,7 +244,7 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
                     margin: 0, background: "rgba(20,184,166,0.08)", padding: "1rem", borderRadius: 12,
                     borderLeft: "3px solid #14b8a6"
                   }}>
-                    {PASSAGE.zh}
+                    {activePassage.zh}
                   </p>
                 </motion.div>
               )}
@@ -280,7 +290,7 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
                   {/* Timer */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                     <span style={{ color: "rgba(20,184,166,0.6)", fontSize: "0.82rem", fontWeight: 700, letterSpacing: "0.2em" }}>
-                      QUERY {qIndex + 1}/{QUESTIONS.length}
+                      QUERY {qIndex + 1}/{activeQuestions.length}
                     </span>
                     <div style={{
                       display: "flex", alignItems: "center", gap: 8,
@@ -312,7 +322,7 @@ export function ReadingBattle({ task, onComplete, onCancel }: ReadingBattleProps
                       color: "white", textShadow: "0 2px 8px rgba(0,0,0,0.3)",
                       marginBottom: "2rem"
                     }}>
-                      {QUESTIONS[qIndex].text}
+                      {activeQuestions[qIndex].text}
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: "auto" }}>

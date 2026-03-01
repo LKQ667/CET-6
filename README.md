@@ -110,6 +110,8 @@ npm run dev
 
 已存在 API 仍可用：
 
+- `POST /api/auth/register`（邮箱+密码注册，注册后可触发验证码绑定）
+- `POST /api/auth/login`（邮箱+密码登录，主登录方式）
 - `POST /api/auth/send-otp`
 - `POST /api/auth/verify-otp`
 - `GET /api/tasks/today`

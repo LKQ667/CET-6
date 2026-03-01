@@ -235,3 +235,36 @@ create trigger trg_vocab_verified_requires_provenance
 after insert or update on public.vocab_entries
 for each row
 execute function public.ensure_vocab_provenance();
+
+-- ========== 题库系统 ==========
+
+create table if not exists public.question_bank (
+  id text primary key,
+  task_type text not null check (task_type in ('vocab', 'listening', 'writing_translation', 'reading')),
+  content jsonb not null,
+  difficulty integer not null default 1 check (difficulty between 1 and 5),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_question_bank_type on public.question_bank(task_type);
+
+create table if not exists public.user_question_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  question_id text not null references public.question_bank(id) on delete cascade,
+  answered_count integer not null default 1 check (answered_count >= 0),
+  correct_count integer not null default 0 check (correct_count >= 0),
+  last_answered_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (user_id, question_id)
+);
+create index if not exists idx_user_question_progress_user on public.user_question_progress(user_id, last_answered_at);
+
+alter table public.question_bank enable row level security;
+alter table public.user_question_progress enable row level security;
+
+drop policy if exists "anyone_can_read_active_questions" on public.question_bank;
+create policy "anyone_can_read_active_questions" on public.question_bank for select using (is_active = true);
+
+drop policy if exists "user_can_manage_own_question_progress" on public.user_question_progress;
+create policy "user_can_manage_own_question_progress" on public.user_question_progress for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

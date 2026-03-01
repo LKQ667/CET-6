@@ -21,6 +21,7 @@ import type {
   BuiltinImportResultItem,
   DailyTask,
   GameProfile,
+  QuestionBankItem,
   ReminderPreference,
   ResourceItem,
   TaskReward,
@@ -161,6 +162,7 @@ function getFlameColor(streakDays: number) {
 export function DashboardApp() {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [taskData, setTaskData] = useState<TaskTodayResponse | null>(null);
   const [vocab, setVocab] = useState<VocabEntry[]>([]);
@@ -178,6 +180,7 @@ export function DashboardApp() {
   const [showLootModal, setShowLootModal] = useState(false);
   const [importSummary, setImportSummary] = useState<BuiltinImportResponse | null>(null);
   const [activeBattleTask, setActiveBattleTask] = useState<DailyTask | null>(null);
+  const [battleQuestion, setBattleQuestion] = useState<QuestionBankItem | null>(null);
   const [isBossBattleActive, setIsBossBattleActive] = useState(false);
 
   const [daysLeft, setDaysLeft] = useState(0);
@@ -258,6 +261,59 @@ export function DashboardApp() {
     loadAuthedData(auth).catch(console.error);
   }, [auth]);
 
+  function applyAuthState(data: { user: { id: string; email: string }; accessToken: string; syncWarning?: string | null }) {
+      const nextAuth: AuthState = {
+        userId: data.user.id,
+        email: data.user.email,
+        accessToken: data.accessToken
+      };
+      localStorage.setItem("cet6_auth", JSON.stringify(nextAuth));
+      setAuth(nextAuth);
+      setMessage(data.syncWarning ? `${zhCN.ui.loginSuccess}（${data.syncWarning}）` : zhCN.ui.loginSuccess);
+  }
+
+  async function registerWithPassword() {
+    setActionBusy(true);
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await parseApi<{ message: string }>(response);
+      setMessage(data.message || "注册成功，请使用密码登录。");
+    } catch (error) {
+      setMessage(`注册失败：${String(error)}`);
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function loginWithPassword() {
+    setActionBusy(true);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await parseApi<{
+        user: { id: string; email: string };
+        accessToken: string;
+        syncWarning?: string | null;
+      }>(response);
+      applyAuthState(data);
+    } catch (error) {
+      setMessage(`密码登录失败：${String(error)}`);
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   async function sendOtp() {
     setActionBusy(true);
     try {
@@ -295,15 +351,7 @@ export function DashboardApp() {
         accessToken: string;
         syncWarning?: string | null;
       }>(response);
-
-      const nextAuth: AuthState = {
-        userId: data.user.id,
-        email: data.user.email,
-        accessToken: data.accessToken
-      };
-      localStorage.setItem("cet6_auth", JSON.stringify(nextAuth));
-      setAuth(nextAuth);
-      setMessage(data.syncWarning ? `${zhCN.ui.loginSuccess}（${data.syncWarning}）` : zhCN.ui.loginSuccess);
+      applyAuthState(data);
     } catch (error) {
       setMessage(`验证码校验失败：${String(error)}`);
     } finally {
@@ -311,7 +359,19 @@ export function DashboardApp() {
     }
   }
 
-  function handleStartBattle(task: DailyTask) {
+  async function handleStartBattle(task: DailyTask) {
+    if (auth) {
+      try {
+        const headers = authHeaders(auth);
+        const res = await fetch(`/api/tasks/detail?taskType=${task.taskType}`, { headers });
+        const data = await parseApi<{ question: QuestionBankItem }>(res);
+        setBattleQuestion(data.question);
+      } catch {
+        setBattleQuestion(null);
+      }
+    } else {
+      setBattleQuestion(null);
+    }
     setActiveBattleTask(task);
   }
 
@@ -339,7 +399,16 @@ export function DashboardApp() {
       setMessage(`${zhCN.ui.taskDone} ${data.reward.note}`);
       setShowLootModal(true);
       setTaskData((prev) => (prev ? markTaskAsCompletedInSnapshot(prev, data.task) : prev));
-      
+
+      // 记录题目进度（用于 Spaced Repetition 去重）
+      if (battleQuestion) {
+        fetch("/api/tasks/detail", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders(auth) },
+          body: JSON.stringify({ questionId: battleQuestion.id, isCorrect: true })
+        }).catch(() => {});
+        setBattleQuestion(null);
+      }
       confetti({
         particleCount: 150,
         spread: 70,
@@ -605,8 +674,8 @@ export function DashboardApp() {
         {!auth ? (
           <section className="guest-grid">
             <article className="panel auth-panel">
-              <h2>{zhCN.ui.loginTitle}</h2>
-              <p className="panel-sub">{zhCN.ui.loginDesc}</p>
+              <h2>账号登录（密码优先）</h2>
+              <p className="panel-sub">先注册账号，再用密码登录。验证码方式保留为备用。</p>
               <div className="form-line">
                 <input
                   id="login-email"
@@ -616,8 +685,21 @@ export function DashboardApp() {
                   placeholder={zhCN.ui.emailPlaceholder}
                   type="email"
                 />
-                <button onClick={sendOtp} disabled={actionBusy || !email} type="button">
-                  {zhCN.ui.sendOtp}
+                <button onClick={registerWithPassword} disabled={actionBusy || !email || password.length < 6} type="button">
+                  注册账号
+                </button>
+              </div>
+              <div className="form-line">
+                <input
+                  id="login-password"
+                  name="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="输入密码（至少 6 位）"
+                  type="password"
+                />
+                <button onClick={loginWithPassword} disabled={actionBusy || !email || password.length < 6} type="button">
+                  密码登录
                 </button>
               </div>
               <div className="form-line">
@@ -629,6 +711,9 @@ export function DashboardApp() {
                   placeholder={zhCN.ui.otpPlaceholder}
                   type="text"
                 />
+                <button className="ghost-btn" onClick={sendOtp} disabled={actionBusy || !email} type="button">
+                  发送验证码
+                </button>
                 <button onClick={verifyOtp} disabled={actionBusy || !otp} type="button">
                   {zhCN.ui.loginSync}
                 </button>
@@ -1065,6 +1150,7 @@ export function DashboardApp() {
         {activeBattleTask && activeBattleTask.taskType === "listening" && (
           <ListeningBattle
             task={activeBattleTask}
+            question={battleQuestion}
             onComplete={handleCompleteTask}
             onCancel={() => setActiveBattleTask(null)}
           />
@@ -1072,6 +1158,7 @@ export function DashboardApp() {
         {activeBattleTask && activeBattleTask.taskType === "writing_translation" && (
           <WritingBattle
             task={activeBattleTask}
+            question={battleQuestion}
             onComplete={handleCompleteTask}
             onCancel={() => setActiveBattleTask(null)}
           />
@@ -1079,6 +1166,7 @@ export function DashboardApp() {
         {activeBattleTask && activeBattleTask.taskType === "reading" && (
           <ReadingBattle
             task={activeBattleTask}
+            question={battleQuestion}
             onComplete={handleCompleteTask}
             onCancel={() => setActiveBattleTask(null)}
           />

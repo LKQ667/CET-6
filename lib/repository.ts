@@ -1110,3 +1110,149 @@ export async function listReminderUsers() {
       targetScore: Number(row.target_score ?? 500)
     }));
 }
+
+// ============================================================
+// 题库系统 (Question Bank + Spaced Repetition)
+// ============================================================
+
+import seedQuestions from "@/data/seed-questions.json";
+import type { QuestionBankItem } from "@/lib/types";
+
+type SeedQuestion = {
+  id: string;
+  taskType: string;
+  content: Record<string, unknown>;
+};
+
+async function ensureQuestionBankSeeded() {
+  if (!isSupabaseReady()) {
+    return;
+  }
+  const supabase = getSupabaseServiceClient();
+  const { count, error } = await supabase
+    .from("question_bank")
+    .select("id", { count: "exact", head: true });
+  if (error) {
+    return;
+  }
+  if ((count ?? 0) > 0) {
+    return;
+  }
+  const rows = (seedQuestions as SeedQuestion[]).map((q) => ({
+    id: q.id,
+    task_type: q.taskType,
+    content: q.content,
+    difficulty: 1,
+    is_active: true
+  }));
+  await supabase.from("question_bank").upsert(rows, { onConflict: "id" });
+}
+
+export async function getQuestionForBattle(
+  userId: string,
+  taskType: string
+): Promise<QuestionBankItem | null> {
+  if (!isSupabaseReady()) {
+    return mockStore.getQuestion(taskType);
+  }
+  try {
+    await ensureQuestionBankSeeded();
+    const supabase = getSupabaseServiceClient();
+
+    // 获取用户近 3 天内已答题的 ID 列表
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const { data: recentProgress } = await supabase
+      .from("user_question_progress")
+      .select("question_id")
+      .eq("user_id", userId)
+      .gte("last_answered_at", threeDaysAgo.toISOString());
+    const excludeIds = (recentProgress ?? []).map((r) => String(r.question_id));
+
+    // 从题库中随机抽一道未答过的题
+    let query = supabase
+      .from("question_bank")
+      .select("*")
+      .eq("task_type", taskType)
+      .eq("is_active", true);
+    if (excludeIds.length > 0) {
+      query = query.not("id", "in", `(${excludeIds.join(",")})`);
+    }
+    const { data: candidates, error: qError } = await query;
+    if (qError) {
+      throw new Error(`题库查询失败: ${qError.message}`);
+    }
+
+    let selected: Record<string, unknown> | null = null;
+    if (candidates && candidates.length > 0) {
+      selected = candidates[Math.floor(Math.random() * candidates.length)];
+    } else {
+      // 所有题都答过了，回退到最久没答的
+      const { data: oldest } = await supabase
+        .from("question_bank")
+        .select("*")
+        .eq("task_type", taskType)
+        .eq("is_active", true)
+        .limit(10);
+      if (oldest && oldest.length > 0) {
+        selected = oldest[Math.floor(Math.random() * oldest.length)];
+      }
+    }
+
+    if (!selected) {
+      return mockStore.getQuestion(taskType);
+    }
+
+    return {
+      id: String(selected.id),
+      taskType: selected.task_type as QuestionBankItem["taskType"],
+      content: selected.content as Record<string, unknown>,
+      difficulty: Number(selected.difficulty ?? 1)
+    };
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.getQuestion(taskType);
+    }
+    throw error;
+  }
+}
+
+export async function recordQuestionProgress(
+  userId: string,
+  questionId: string,
+  isCorrect: boolean
+) {
+  if (!isSupabaseReady()) {
+    return;
+  }
+  try {
+    const supabase = getSupabaseServiceClient();
+    const { data: existing } = await supabase
+      .from("user_question_progress")
+      .select("id, answered_count, correct_count")
+      .eq("user_id", userId)
+      .eq("question_id", questionId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("user_question_progress")
+        .update({
+          answered_count: Number(existing.answered_count) + 1,
+          correct_count: Number(existing.correct_count) + (isCorrect ? 1 : 0),
+          last_answered_at: new Date().toISOString()
+        })
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("user_question_progress").insert({
+        user_id: userId,
+        question_id: questionId,
+        answered_count: 1,
+        correct_count: isCorrect ? 1 : 0,
+        last_answered_at: new Date().toISOString()
+      });
+    }
+  } catch {
+    // 进度记录失败不阻断主流程
+  }
+}
