@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
       return errorJson("参数校验失败", 422, parsed.error.flatten());
     }
 
-    const { email, password } = parsed.data;
+    const email = parsed.data.email.trim().toLowerCase();
+    const password = parsed.data.password;
     if (!isSupabaseReady()) {
       return okJson({
         accessToken: "dev-access-token",
@@ -39,6 +40,13 @@ export async function POST(request: NextRequest) {
       password
     });
     if (error || !data.user || !data.session) {
+      const rawMessage = error?.message ?? "邮箱或密码错误";
+      const normalized = rawMessage.toLowerCase();
+      if (normalized.includes("email not confirmed")) {
+        return errorJson("邮箱尚未完成绑定，请先使用验证码登录一次。", 403, {
+          hint: "请点击“发送验证码”，使用最新邮件验证码登录后，再尝试密码登录。"
+        });
+      }
       return errorJson(error?.message ?? "邮箱或密码错误", 401, {
         hint: "请检查邮箱/密码，若未注册请先注册。"
       });
@@ -75,4 +83,3 @@ export async function POST(request: NextRequest) {
     return errorJson("登录失败", 500, String(error));
   }
 }
-

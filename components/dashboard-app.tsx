@@ -159,6 +159,10 @@ function getFlameColor(streakDays: number) {
   return "orange";
 }
 
+function normalizeEmailInput(value: string) {
+  return value.trim().toLowerCase();
+}
+
 export function DashboardApp() {
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [registerEmail, setRegisterEmail] = useState("");
@@ -288,15 +292,16 @@ export function DashboardApp() {
   async function registerWithPassword() {
     setActionBusy(true);
     try {
+      const normalizedEmail = normalizeEmailInput(registerEmail);
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email: registerEmail, password: registerPassword })
+        body: JSON.stringify({ email: normalizedEmail, password: registerPassword })
       });
       const data = await parseApi<{ message: string }>(response);
-      setEmail(registerEmail);
+      setEmail(normalizedEmail);
       setMessage(data.message || "注册成功，请使用密码登录。");
     } catch (error) {
       setMessage(`注册失败：${String(error)}`);
@@ -308,12 +313,13 @@ export function DashboardApp() {
   async function loginWithPassword() {
     setActionBusy(true);
     try {
+      const normalizedEmail = normalizeEmailInput(email);
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: normalizedEmail, password })
       });
       const data = await parseApi<{
         user: { id: string; email: string };
@@ -334,12 +340,13 @@ export function DashboardApp() {
     }
     setActionBusy(true);
     try {
+      const normalizedEmail = normalizeEmailInput(email);
       const response = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: normalizedEmail })
       });
       await parseApi<{ sent?: boolean; mockMode?: boolean; message?: string }>(response);
       setOtpCooldown(60);
@@ -357,13 +364,14 @@ export function DashboardApp() {
   async function verifyOtp() {
     setActionBusy(true);
     try {
+      const normalizedEmail = normalizeEmailInput(email);
       const response = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          email,
+          email: normalizedEmail,
           token: otp
         })
       });

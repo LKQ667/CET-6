@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
       return errorJson("参数校验失败", 422, parsed.error.flatten());
     }
 
-    const { email, password } = parsed.data;
+    const email = parsed.data.email.trim().toLowerCase();
+    const password = parsed.data.password;
     if (!isSupabaseReady()) {
       return okJson({
         registered: true,
@@ -28,10 +29,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const supabase = getSupabaseServerClient();
-    const { data, error } = await supabase.auth.signUp({
+    const service = getSupabaseServiceClient();
+    const { data, error } = await service.auth.admin.createUser({
       email,
-      password
+      password,
+      email_confirm: true
     });
     if (error) {
       const msg = error.message.toLowerCase();
@@ -43,7 +45,13 @@ export async function POST(request: NextRequest) {
 
     let otpSent = false;
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({ email });
+      const supabase = getSupabaseServerClient();
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false
+        }
+      });
       otpSent = !otpError;
     } catch {
       otpSent = false;
@@ -52,7 +60,6 @@ export async function POST(request: NextRequest) {
     if (data.user?.id) {
       try {
         await ensureUserMeta(data.user.id);
-        const service = getSupabaseServiceClient();
         await service
           .from("users")
           .update({
@@ -77,4 +84,3 @@ export async function POST(request: NextRequest) {
     return errorJson("注册失败", 500, String(error));
   }
 }
-

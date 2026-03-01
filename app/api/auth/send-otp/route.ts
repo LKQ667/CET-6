@@ -55,9 +55,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const normalizedEmail = parsed.data.email.trim().toLowerCase();
     const supabase = getSupabaseServerClient();
     const { error } = await supabase.auth.signInWithOtp({
-      email: parsed.data.email
+      email: normalizedEmail,
+      options: {
+        shouldCreateUser: false
+      }
     });
     if (error) {
       const mapped = mapOtpError(error.message);
