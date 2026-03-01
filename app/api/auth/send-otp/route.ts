@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const normalizedEmail = parsed.data.email.trim().toLowerCase();
+    const normalizedEmail = parsed.data.email.trim();
     const supabase = getSupabaseServerClient();
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,

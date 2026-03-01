@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       return errorJson(zhCN.api.common.validationFailed, 422, parsed.error.flatten());
     }
 
-    const email = parsed.data.email.trim().toLowerCase();
+    const email = parsed.data.email.trim();
     const token = parsed.data.token;
     if (!isSupabaseReady()) {
       return okJson({

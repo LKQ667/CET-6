@@ -160,7 +160,7 @@ function getFlameColor(streakDays: number) {
 }
 
 function normalizeEmailInput(value: string) {
-  return value.trim().toLowerCase();
+  return value.trim();
 }
 
 export function DashboardApp() {

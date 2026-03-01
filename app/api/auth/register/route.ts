@@ -4,7 +4,7 @@ import { z } from "zod";
 import { errorJson, okJson } from "@/lib/api";
 import { isSupabaseReady } from "@/lib/config";
 import { ensureUserMeta } from "@/lib/repository";
-import { getSupabaseServerClient, getSupabaseServiceClient } from "@/lib/supabase/server";
+import { getSupabaseServiceClient } from "@/lib/supabase/server";
 
 const schema = z.object({
   email: z.string().email("邮箱格式错误"),
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return errorJson("参数校验失败", 422, parsed.error.flatten());
     }
 
-    const email = parsed.data.email.trim().toLowerCase();
+    const email = parsed.data.email.trim();
     const password = parsed.data.password;
     if (!isSupabaseReady()) {
       return okJson({
@@ -38,23 +38,13 @@ export async function POST(request: NextRequest) {
     if (error) {
       const msg = error.message.toLowerCase();
       if (msg.includes("already") || msg.includes("exists") || msg.includes("registered")) {
-        return errorJson("该邮箱已注册，请直接密码登录。", 409);
+        return okJson({
+          registered: true,
+          alreadyExists: true,
+          message: "该邮箱已注册，无需重复注册，请直接密码登录。"
+        });
       }
       return errorJson("注册失败", 400, error.message);
-    }
-
-    let otpSent = false;
-    try {
-      const supabase = getSupabaseServerClient();
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false
-        }
-      });
-      otpSent = !otpError;
-    } catch {
-      otpSent = false;
     }
 
     if (data.user?.id) {
@@ -75,10 +65,7 @@ export async function POST(request: NextRequest) {
     return okJson({
       registered: true,
       userId: data.user?.id ?? null,
-      otpSent,
-      message: otpSent
-        ? "注册成功，验证码已发送到邮箱用于绑定/备用登录。"
-        : "注册成功，请使用密码登录。"
+      message: "注册成功，请使用密码登录。"
     });
   } catch (error) {
     return errorJson("注册失败", 500, String(error));

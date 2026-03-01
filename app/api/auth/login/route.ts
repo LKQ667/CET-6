@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       return errorJson("参数校验失败", 422, parsed.error.flatten());
     }
 
-    const email = parsed.data.email.trim().toLowerCase();
+    const email = parsed.data.email.trim();
     const password = parsed.data.password;
     if (!isSupabaseReady()) {
       return okJson({
