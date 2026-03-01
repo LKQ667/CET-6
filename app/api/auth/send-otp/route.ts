@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { errorJson, okJson } from "@/lib/api";
@@ -9,6 +9,36 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 const schema = z.object({
   email: z.string().email("邮箱格式错误")
 });
+
+function mapOtpError(message: string) {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("rate limit") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("for security purposes")
+  ) {
+    return {
+      status: 429,
+      hint: "请求过于频繁，请 60 秒后重试，或直接使用最近一封邮件中的验证码。"
+    };
+  }
+  if (normalized.includes("email logins are disabled")) {
+    return {
+      status: 503,
+      hint: "Supabase 邮箱登录未启用，请在 Authentication -> Providers -> Email 开启。"
+    };
+  }
+  if (normalized.includes("smtp") || normalized.includes("error sending")) {
+    return {
+      status: 502,
+      hint: "邮件网关异常，请稍后重试。"
+    };
+  }
+  return {
+    status: 500,
+    hint: "发送验证码失败，请稍后重试。"
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +60,11 @@ export async function POST(request: NextRequest) {
       email: parsed.data.email
     });
     if (error) {
-      return errorJson(`${zhCN.api.auth.sendOtpFailed}: ${error.message}`, 500);
+      const mapped = mapOtpError(error.message);
+      return errorJson(zhCN.api.auth.sendOtpFailed, mapped.status, {
+        reason: error.message,
+        hint: mapped.hint
+      });
     }
 
     return okJson({
