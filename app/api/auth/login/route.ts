@@ -6,7 +6,7 @@ import { z } from "zod";
 import { errorJson, okJson } from "@/lib/api";
 import { isSupabaseReady } from "@/lib/config";
 import { ensureUserMeta } from "@/lib/repository";
-import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { getSupabaseServerClient, getSupabaseServiceClient } from "@/lib/supabase/server";
 
 const schema = z.object({
   email: z.string().email("邮箱格式错误"),
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const supabase = getSupabaseServiceClient();
+    const supabase = getSupabaseServerClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
