@@ -420,7 +420,20 @@ export function DashboardApp() {
         (async () => {
           const nextTasksRes = await fetch("/api/tasks/today", { headers: authHeaders(auth) });
           const nextTasks = await parseApi<TaskTodayResponse>(nextTasksRes);
-          setTaskData(markTaskAsCompletedInSnapshot(nextTasks, data.task));
+          // 合并本地已知的所有完成态，防止 API 返回滞后导致完成态丢失
+          setTaskData((prev) => {
+            const localCompleted = new Set(
+              (prev?.tasks ?? []).filter((t) => t.completed).map((t) => t.id)
+            );
+            // 当前刚完成的也加进来
+            localCompleted.add(data.task.id);
+            return {
+              ...nextTasks,
+              tasks: nextTasks.tasks.map((t) =>
+                localCompleted.has(t.id) ? { ...t, completed: true, completedAt: t.completedAt ?? new Date().toISOString() } : t
+              )
+            };
+          });
         })(),
         (async () => {
           const nextGameRes = await fetch("/api/game/profile", { headers: authHeaders(auth) });
