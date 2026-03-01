@@ -6,7 +6,20 @@ import { buildDailyBriefPdfBuffer } from "@/lib/daily-brief-pdf";
 import { verifyDailyPdfToken } from "@/lib/daily-pdf-token";
 import { getBeijingDateString } from "@/lib/date";
 import { zhCN } from "@/lib/i18n/zh-CN";
-import { getBaselineScore, getOrCreateTodayTasks, getVocabToday } from "@/lib/repository";
+import { getBaselineScore, getOrCreateTodayTasks, getQuestionForBattle, getVocabToday } from "@/lib/repository";
+
+function extractTodaySentence(content: unknown): { en: string; zh?: string } | null {
+  if (!content || typeof content !== "object") {
+    return null;
+  }
+  const data = content as Record<string, unknown>;
+  const en = typeof data.en === "string" ? data.en.trim() : "";
+  if (!en) {
+    return null;
+  }
+  const zh = typeof data.zh === "string" ? data.zh.trim() : undefined;
+  return { en, zh };
+}
 
 function badRequest(message: string, status = 400) {
   return NextResponse.json(
@@ -51,11 +64,13 @@ export async function GET(request: NextRequest) {
       userId = auth.userId;
     }
 
-    const [baseline, taskData, vocab] = await Promise.all([
+    const [baseline, taskData, vocab, listeningQuestion] = await Promise.all([
       getBaselineScore(userId),
       getOrCreateTodayTasks(userId, date),
-      getVocabToday(16)
+      getVocabToday(16),
+      getQuestionForBattle(userId, "listening").catch(() => null)
     ]);
+    const todaySentence = extractTodaySentence(listeningQuestion?.content);
 
     const pdfBuffer = await buildDailyBriefPdfBuffer({
       date,
@@ -64,7 +79,8 @@ export async function GET(request: NextRequest) {
       targetScore: appConfig.prep.targetScore,
       baseline,
       tasks: taskData.tasks,
-      vocab
+      vocab,
+      todaySentence
     });
 
     const fileName = `CET6-每日备考-${date}.pdf`;

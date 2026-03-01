@@ -13,6 +13,7 @@ import {
   getBaselineScore,
   getOrCreateReminderPreference,
   getOrCreateTodayTasks,
+  getQuestionForBattle,
   getPushSubscriptions,
   getVocabToday,
   listReminderUsers
@@ -22,6 +23,19 @@ import { getSupabaseServiceClient } from "@/lib/supabase/server";
 const REMINDER_BATCH_SIZE = 10;
 
 type ReminderUser = Awaited<ReturnType<typeof listReminderUsers>>[number];
+
+function extractTodaySentence(content: unknown): { en: string; zh?: string } | null {
+  if (!content || typeof content !== "object") {
+    return null;
+  }
+  const data = content as Record<string, unknown>;
+  const en = typeof data.en === "string" ? data.en.trim() : "";
+  if (!en) {
+    return null;
+  }
+  const zh = typeof data.zh === "string" ? data.zh.trim() : undefined;
+  return { en, zh };
+}
 
 function getCurrentSlot() {
   const now = toZonedTime(new Date(), appConfig.reminder.timezone);
@@ -111,10 +125,12 @@ async function processReminderUser(input: {
 
     if (isEveningSlot) {
       try {
-        const [baseline, vocab] = await Promise.all([
+        const [baseline, vocab, listeningQuestion] = await Promise.all([
           getBaselineScore(user.userId),
-          getVocabToday(16)
+          getVocabToday(16),
+          getQuestionForBattle(user.userId, "listening").catch(() => null)
         ]);
+        const todaySentence = extractTodaySentence(listeningQuestion?.content);
         const pdfBuffer = await buildDailyBriefPdfBuffer({
           userEmail: user.email,
           date: today,
@@ -123,7 +139,8 @@ async function processReminderUser(input: {
           targetScore: user.targetScore,
           baseline,
           tasks: taskData.tasks,
-          vocab
+          vocab,
+          todaySentence
         });
         const expiresAt = Date.now() + 36 * 60 * 60 * 1000;
         pdfDownloadUrl = buildSignedDailyPdfUrl(appUrl, {

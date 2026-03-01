@@ -14,6 +14,10 @@ interface DailyBriefPdfInput {
   baseline: BaselineScore;
   tasks: DailyTask[];
   vocab: VocabEntry[];
+  todaySentence?: {
+    en: string;
+    zh?: string;
+  } | null;
 }
 
 const FONT_CACHE_PATH = path.join("/tmp", "NotoSansSC-Regular.ttf");
@@ -191,6 +195,21 @@ export async function buildDailyBriefPdfBuffer(input: DailyBriefPdfInput) {
     doc.text("1) 回看今天未完成任务，优先补齐 1 项弱项任务。");
     doc.text("2) 复盘错词与出处，标记明日回流词。");
     doc.text("3) 写译用 10 分钟做 1 组微练，保持语感。");
+
+    doc.moveDown(0.8);
+    doc.fontSize(14).fillColor("#0f172a").text("四、今日句子（听力精读）");
+    doc.moveDown(0.4);
+    doc.fontSize(10).fillColor("#111827");
+    if (input.todaySentence?.en) {
+      doc.text(`EN: ${cleanText(input.todaySentence.en)}`);
+      if (input.todaySentence.zh) {
+        doc.moveDown(0.2);
+        doc.fillColor("#374151").text(`ZH: ${cleanText(input.todaySentence.zh)}`);
+        doc.fillColor("#111827");
+      }
+    } else {
+      doc.text("今日句子暂未生成，可在听力战斗中抽取当日句并复盘。");
+    }
 
     doc.moveDown(0.8);
     doc.fontSize(9).fillColor("#64748b").text(
