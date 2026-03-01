@@ -38,10 +38,35 @@ export async function POST(request: NextRequest) {
     if (error) {
       const msg = error.message.toLowerCase();
       if (msg.includes("already") || msg.includes("exists") || msg.includes("registered")) {
+        try {
+          const { data: usersData, error: listError } = await service.auth.admin.listUsers({
+            page: 1,
+            perPage: 1000
+          });
+          if (listError) {
+            return errorJson("读取已注册账号失败", 500, listError.message);
+          }
+
+          const matched = (usersData.users ?? []).find(
+            (u) => (u.email ?? "").trim() === email
+          );
+          if (matched?.id) {
+            const { error: resetErr } = await service.auth.admin.updateUserById(matched.id, {
+              password,
+              email_confirm: true
+            });
+            if (resetErr) {
+              return errorJson("账号已存在，但更新密码失败", 500, resetErr.message);
+            }
+          }
+        } catch (resetError) {
+          return errorJson("账号已存在，但更新密码失败", 500, String(resetError));
+        }
+
         return okJson({
           registered: true,
           alreadyExists: true,
-          message: "该邮箱已注册，无需重复注册，请直接密码登录。"
+          message: "该邮箱已注册，已更新为新密码，请直接密码登录。"
         });
       }
       return errorJson("注册失败", 400, error.message);
