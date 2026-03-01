@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AudioLines, X, Volume2 } from "lucide-react";
 import type { DailyTask } from "@/lib/types";
@@ -14,13 +14,23 @@ interface ListeningBattleProps {
 }
 
 const SENTENCES = [
-  { en: "the rapid development of technology has improved human life", zh: "技术的飞速发展极大地改善了人类的生活。" },
-  { en: "climate change poses a severe threat to global ecosystems", zh: "气候变化对全球生态系统构成了极其严重的威胁。" }
+  {
+    en: "the rapid development of technology has improved human life",
+    zh: "技术的飞速发展极大地改善了人类的生活。",
+    audio: "/audio/listening/rapid-development.wav"
+  },
+  {
+    en: "climate change poses a severe threat to global ecosystems",
+    zh: "气候变化对全球生态系统构成了极其严重的威胁。",
+    audio: "/audio/listening/climate-change.wav"
+  }
 ];
 
 export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleProps) {
   const [sentenceObj] = useState(() => SENTENCES[Math.floor(Math.random() * SENTENCES.length)]);
   const sentence = sentenceObj.en;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const [shuffledWords, setShuffledWords] = useState<{ id: string; word: string }[]>([]);
   const [assembledWords, setAssembledWords] = useState<{ id: string; word: string }[]>([]);
   const [shake, setShake] = useState(false);
@@ -42,9 +52,15 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
     setShuffledWords(words);
   }, [sentence]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // TTS speak function
-  const speakSentence = useCallback(async () => {
-    setAudioError("");
+  const stopCurrentAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+  }, []);
+
+  const playByTts = useCallback(async () => {
     setSpeaking(true);
     const result = await speakText(sentence, {
       lang: "en-US",
@@ -54,32 +70,68 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
       onEnd: () => setSpeaking(false),
       onError: () => setSpeaking(false)
     });
-    if (result.ok) {
-      setPlayCount((prev) => prev + 1);
-      return;
+    if (!result.ok) {
+      setSpeaking(false);
+      return false;
     }
-    setSpeaking(false);
-    setAudioError("语音播放失败，请重试或检查浏览器语音权限。");
+    setPlayCount((prev) => prev + 1);
+    return true;
   }, [sentence]);
 
-  // Auto-play on mount
+  // 优先播放本地音频，失败时回退 TTS
+  const speakSentence = useCallback(async () => {
+    setAudioError("");
+    stopCurrentAudio();
+    cancelSpeech();
+
+    if (sentenceObj.audio) {
+      try {
+        const audio = new Audio(sentenceObj.audio);
+        audio.preload = "auto";
+        audioRef.current = audio;
+
+        await new Promise<void>((resolve, reject) => {
+          audio.onplay = () => {
+            setSpeaking(true);
+            setPlayCount((prev) => prev + 1);
+          };
+          audio.onended = () => {
+            setSpeaking(false);
+            resolve();
+          };
+          audio.onerror = () => {
+            setSpeaking(false);
+            reject(new Error("audio_file_play_failed"));
+          };
+          audio.play().catch(reject);
+        });
+
+        return;
+      } catch {
+        // 回退 TTS
+      }
+    }
+
+    const ttsOk = await playByTts();
+    if (!ttsOk) {
+      setAudioError("语音播放失败，请重试或检查浏览器语音权限。");
+    }
+  }, [playByTts, sentenceObj.audio, stopCurrentAudio]);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void speakSentence();
-    }, 600);
     return () => {
-      clearTimeout(timer);
+      stopCurrentAudio();
       cancelSpeech();
     };
-  }, [speakSentence]);
+  }, [stopCurrentAudio]);
 
   const handleTileClick = (tile: { id: string; word: string }) => {
     const targetIndex = assembledWords.length;
     if (originalWords[targetIndex] === tile.word) {
       sfxTilePlace();
-      setAssembledWords(prev => [...prev, tile]);
-      setShuffledWords(prev => prev.filter(w => w.id !== tile.id));
-      setHp(prev => Math.max(0, prev - (maxHp / originalWords.length)));
+      setAssembledWords((prev) => [...prev, tile]);
+      setShuffledWords((prev) => prev.filter((w) => w.id !== tile.id));
+      setHp((prev) => Math.max(0, prev - (maxHp / originalWords.length)));
 
       if (targetIndex + 1 === originalWords.length) {
         sfxVictory();
@@ -117,7 +169,6 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
         background: "#0a111a",
         boxShadow: "0 0 60px rgba(8,145,178,0.12)", overflow: "hidden"
       }}>
-        {/* Header */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "1.2rem 1.8rem", borderBottom: "1px solid rgba(8,145,178,0.2)"
@@ -146,7 +197,6 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
           </button>
         </div>
 
-        {/* TTS Replay Bar */}
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           gap: 14, padding: "0.8rem 1.8rem",
@@ -190,9 +240,7 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
           </div>
         ) : null}
 
-        {/* Arena */}
         <div style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem", minHeight: 400 }}>
-          {/* HP */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", fontWeight: 700, color: "rgba(8,145,178,0.7)", marginBottom: 8, letterSpacing: "0.2em", textTransform: "uppercase" as const }}>
               <span>Sonic Anomaly</span>
@@ -211,7 +259,6 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
             transition={{ duration: 0.3 }}
             style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5rem" }}
           >
-            {/* Word tiles */}
             <div style={{
               flex: 1, minHeight: 140, padding: "1.5rem", borderRadius: 18,
               border: "1px solid rgba(8,145,178,0.15)", background: "#0c1622",
@@ -219,7 +266,7 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
               boxShadow: "inset 0 2px 15px rgba(0,0,0,0.4)"
             }}>
               <AnimatePresence>
-                {shuffledWords.map(tile => (
+                {shuffledWords.map((tile) => (
                   <motion.button
                     layoutId={`tile-${tile.id}`}
                     key={tile.id}
@@ -242,14 +289,13 @@ export function ListeningBattle({ task, onComplete, onCancel }: ListeningBattleP
               )}
             </div>
 
-            {/* Assembly zone */}
             <div style={{
               position: "relative", padding: "1.5rem", borderRadius: 18,
               borderBottom: "2px solid rgba(34,211,238,0.4)", background: "#070b12",
               display: "flex", flexWrap: "wrap", gap: 14, minHeight: 90,
               boxShadow: "inset 0 -20px 35px rgba(8,145,178,0.04)"
             }}>
-              {assembledWords.map(tile => (
+              {assembledWords.map((tile) => (
                 <motion.div
                   layoutId={`tile-${tile.id}`}
                   key={tile.id}
