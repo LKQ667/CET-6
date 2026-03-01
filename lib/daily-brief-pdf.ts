@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import https from "node:https";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 
@@ -15,9 +16,72 @@ interface DailyBriefPdfInput {
   vocab: VocabEntry[];
 }
 
+const FONT_CACHE_PATH = path.join("/tmp", "NotoSansSC-Regular.ttf");
+const FONT_CDN_URL =
+  "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf";
+
+/** 从 CDN 下载字体到 /tmp 缓存，已存在则跳过 */
+async function ensureCdnFont(): Promise<string | null> {
+  if (fs.existsSync(FONT_CACHE_PATH)) {
+    return FONT_CACHE_PATH;
+  }
+  return new Promise((resolve) => {
+    const file = fs.createWriteStream(FONT_CACHE_PATH);
+    const req = https.get(FONT_CDN_URL, { timeout: 8000 }, (res) => {
+      // 跟随重定向
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        file.close();
+        fs.unlinkSync(FONT_CACHE_PATH);
+        https.get(res.headers.location, { timeout: 8000 }, (redirectRes) => {
+          redirectRes.pipe(file);
+          file.on("finish", () => {
+            file.close();
+            // 验证文件大小 > 100KB 才算有效
+            try {
+              const stat = fs.statSync(FONT_CACHE_PATH);
+              resolve(stat.size > 100_000 ? FONT_CACHE_PATH : null);
+            } catch {
+              resolve(null);
+            }
+          });
+        }).on("error", () => {
+          file.close();
+          resolve(null);
+        });
+        return;
+      }
+      if (res.statusCode !== 200) {
+        file.close();
+        resolve(null);
+        return;
+      }
+      res.pipe(file);
+      file.on("finish", () => {
+        file.close();
+        try {
+          const stat = fs.statSync(FONT_CACHE_PATH);
+          resolve(stat.size > 100_000 ? FONT_CACHE_PATH : null);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+    req.on("error", () => {
+      file.close();
+      resolve(null);
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      file.close();
+      resolve(null);
+    });
+  });
+}
+
 function pickCjkFontPath() {
   const candidates = [
     path.join(process.cwd(), "public", "fonts", "NotoSansSC-Regular.ttf"),
+    FONT_CACHE_PATH,
     "C:\\Windows\\Fonts\\simhei.ttf",
     "C:\\Windows\\Fonts\\msyh.ttf",
     "/usr/share/fonts/truetype/noto/NotoSansSC-Regular.ttf",
@@ -27,7 +91,10 @@ function pickCjkFontPath() {
   for (const fontPath of candidates) {
     try {
       if (fs.existsSync(fontPath)) {
-        return fontPath;
+        const stat = fs.statSync(fontPath);
+        if (stat.size > 100_000) {
+          return fontPath;
+        }
       }
     } catch {
       continue;
@@ -50,6 +117,9 @@ function cleanText(input: string) {
 }
 
 export async function buildDailyBriefPdfBuffer(input: DailyBriefPdfInput) {
+  // 先确保字体可用
+  await ensureCdnFont();
+
   return await new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",

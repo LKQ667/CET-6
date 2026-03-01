@@ -25,6 +25,16 @@ type ReminderUser = Awaited<ReturnType<typeof listReminderUsers>>[number];
 
 function getCurrentSlot() {
   const now = toZonedTime(new Date(), appConfig.reminder.timezone);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  // 模糊匹配：如果当前时间在某个预设提醒时间 ±5 分钟内，吸附到该时间点
+  for (const slot of appConfig.reminder.times) {
+    const [h, m] = slot.split(":").map(Number);
+    const slotMinutes = h * 60 + m;
+    if (Math.abs(currentMinutes - slotMinutes) <= 5) {
+      return slot;
+    }
+  }
+  // 没有匹配到预设时间，返回精确时间
   return format(now, "HH:mm");
 }
 
