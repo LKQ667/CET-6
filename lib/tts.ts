@@ -73,6 +73,9 @@ export async function speakText(text: string, options: SpeakTextOptions = {}): P
   const timeoutMs = options.timeoutMs ?? Math.max(8000, text.length * 180);
 
   synth.cancel();
+  if (synth.paused) {
+    synth.resume();
+  }
   const voices = await waitForVoices(synth, 1200);
 
   const utterance = new window.SpeechSynthesisUtterance(text);
@@ -114,5 +117,8 @@ export async function speakText(text: string, options: SpeakTextOptions = {}): P
     };
 
     synth.speak(utterance);
+    if (synth.paused) {
+      synth.resume();
+    }
   });
 }

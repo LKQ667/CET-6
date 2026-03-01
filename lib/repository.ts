@@ -419,114 +419,120 @@ export async function completeTask(userId: string, taskId: string, date = getBei
   if (!isSupabaseReady()) {
     return mockStore.completeTask(userId, taskId, date);
   }
+  try {
+    const supabase = getSupabaseServiceClient();
+    const { data: taskData, error: queryError } = await supabase
+      .from("daily_tasks")
+      .select("*")
+      .eq("id", taskId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (queryError) {
+      throw new Error(`读取任务失败: ${queryError.message}`);
+    }
+    if (!taskData) {
+      return null;
+    }
 
-  const supabase = getSupabaseServiceClient();
-  const { data: taskData, error: queryError } = await supabase
-    .from("daily_tasks")
-    .select("*")
-    .eq("id", taskId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (queryError) {
-    throw new Error(`读取任务失败: ${queryError.message}`);
-  }
-  if (!taskData) {
-    return null;
-  }
+    const taskDate = String(taskData.task_date);
+    const alreadyCompleted = Boolean(taskData.completed);
+    const task = mapTaskRow(taskData as Record<string, unknown>);
+    const profile = await getOrCreateGameProfileCore(userId);
 
-  const taskDate = String(taskData.task_date);
-  const alreadyCompleted = Boolean(taskData.completed);
-  const task = mapTaskRow(taskData as Record<string, unknown>);
-  const profile = await getOrCreateGameProfileCore(userId);
+    if (alreadyCompleted) {
+      return {
+        task,
+        reward: toTaskReward({
+          exp: 0,
+          coins: 0,
+          levelUp: false,
+          level: profile.level,
+          streakDays: profile.streakDays,
+          bonusRate: computeBonusRate(profile.streakDays),
+          note: zhCN.game.alreadyDone
+        })
+      };
+    }
 
-  if (alreadyCompleted) {
+    const { data: updated, error: updateError } = await supabase
+      .from("daily_tasks")
+      .update({
+        completed: true,
+        completed_at: new Date().toISOString()
+      })
+      .eq("id", taskId)
+      .eq("user_id", userId)
+      .select("*")
+      .single();
+    if (updateError) {
+      throw new Error(`更新任务状态失败: ${updateError.message}`);
+    }
+    const updatedTask = mapTaskRow(updated as Record<string, unknown>);
+
+    const bonusRate = computeBonusRate(profile.streakDays);
+    const exp = Math.round(25 * (1 + bonusRate));
+    const coins = 10;
+
+    profile.exp += exp;
+    profile.coins += coins;
+
+    const dailyLog = await getOrCreateDailyLog(userId, taskDate);
+    dailyLog.expGained += exp;
+    dailyLog.coinsGained += coins;
+    dailyLog.tasksCompleted += 1;
+
+    let note: string = zhCN.game.rewardNote;
+
+    const { data: taskRows, error: rowsError } = await supabase
+      .from("daily_tasks")
+      .select("completed")
+      .eq("user_id", userId)
+      .eq("task_date", taskDate);
+    if (rowsError) {
+      throw new Error(`读取任务完成情况失败: ${rowsError.message}`);
+    }
+    const allCompleted = (taskRows ?? []).length > 0 && (taskRows ?? []).every((row) => Boolean(row.completed));
+
+    if (allCompleted) {
+      if (profile.lastActiveDate === previousDate(taskDate)) {
+        profile.streakDays += 1;
+      } else if (profile.lastActiveDate !== taskDate) {
+        profile.streakDays = 1;
+      }
+      profile.lastActiveDate = taskDate;
+
+      if (isBossDay(taskDate) && !dailyLog.bossDefeated) {
+        profile.exp += 80;
+        dailyLog.expGained += 80;
+        dailyLog.bossDefeated = true;
+        note = zhCN.game.bossVictoryNote;
+      }
+    }
+
+    const levelCalc = gainLevel(profile.level, profile.exp);
+    profile.level = levelCalc.level;
+
+    await saveGameProfileCore(userId, profile);
+    await saveDailyLog(dailyLog);
+
     return {
-      task,
+      task: updatedTask,
       reward: toTaskReward({
-        exp: 0,
-        coins: 0,
-        levelUp: false,
+        exp,
+        coins,
+        levelUp: levelCalc.levelUp,
         level: profile.level,
         streakDays: profile.streakDays,
-        bonusRate: computeBonusRate(profile.streakDays),
-        note: zhCN.game.alreadyDone
+        bonusRate,
+        note
       })
     };
-  }
-
-  const { data: updated, error: updateError } = await supabase
-    .from("daily_tasks")
-    .update({
-      completed: true,
-      completed_at: new Date().toISOString()
-    })
-    .eq("id", taskId)
-    .eq("user_id", userId)
-    .select("*")
-    .single();
-  if (updateError) {
-    throw new Error(`更新任务状态失败: ${updateError.message}`);
-  }
-  const updatedTask = mapTaskRow(updated as Record<string, unknown>);
-
-  const bonusRate = computeBonusRate(profile.streakDays);
-  const exp = Math.round(25 * (1 + bonusRate));
-  const coins = 10;
-
-  profile.exp += exp;
-  profile.coins += coins;
-
-  const dailyLog = await getOrCreateDailyLog(userId, taskDate);
-  dailyLog.expGained += exp;
-  dailyLog.coinsGained += coins;
-  dailyLog.tasksCompleted += 1;
-
-  let note: string = zhCN.game.rewardNote;
-
-  const { data: taskRows, error: rowsError } = await supabase
-    .from("daily_tasks")
-    .select("completed")
-    .eq("user_id", userId)
-    .eq("task_date", taskDate);
-  if (rowsError) {
-    throw new Error(`读取任务完成情况失败: ${rowsError.message}`);
-  }
-  const allCompleted = (taskRows ?? []).length > 0 && (taskRows ?? []).every((row) => Boolean(row.completed));
-
-  if (allCompleted) {
-    if (profile.lastActiveDate === previousDate(taskDate)) {
-      profile.streakDays += 1;
-    } else if (profile.lastActiveDate !== taskDate) {
-      profile.streakDays = 1;
+  } catch (error) {
+    if (shouldUseMockFallback(error)) {
+      return mockStore.completeTask(userId, taskId, date);
     }
-    profile.lastActiveDate = taskDate;
-
-    if (isBossDay(taskDate) && !dailyLog.bossDefeated) {
-      profile.exp += 80;
-      dailyLog.expGained += 80;
-      dailyLog.bossDefeated = true;
-      note = zhCN.game.bossVictoryNote;
-    }
+    throw error;
   }
-
-  const levelCalc = gainLevel(profile.level, profile.exp);
-  profile.level = levelCalc.level;
-
-  await saveGameProfileCore(userId, profile);
-  await saveDailyLog(dailyLog);
-
-  return {
-    task: updatedTask,
-    reward: toTaskReward({
-      exp,
-      coins,
-      levelUp: levelCalc.levelUp,
-      level: profile.level,
-      streakDays: profile.streakDays,
-      bonusRate,
-      note
-    })
-  };
 }
 
 export async function getGameProfile(userId: string, date = getBeijingDateString()): Promise<GameProfile> {
