@@ -15,29 +15,6 @@ export interface SpeakTextResult {
   reason?: "unsupported" | "error" | "timeout";
 }
 
-async function waitForVoices(synth: SpeechSynthesis, timeoutMs: number) {
-  const existing = synth.getVoices();
-  if (existing.length > 0) {
-    return existing;
-  }
-
-  return new Promise<SpeechSynthesisVoice[]>((resolve) => {
-    let done = false;
-    const finish = (voices: SpeechSynthesisVoice[]) => {
-      if (done) return;
-      done = true;
-      synth.removeEventListener("voiceschanged", onVoicesChanged);
-      resolve(voices);
-    };
-    const onVoicesChanged = () => {
-      finish(synth.getVoices());
-    };
-
-    synth.addEventListener("voiceschanged", onVoicesChanged);
-    window.setTimeout(() => finish(synth.getVoices()), timeoutMs);
-  });
-}
-
 function pickVoiceByLang(voices: SpeechSynthesisVoice[], lang: string) {
   const exact = voices.find((voice) => voice.lang.toLowerCase() === lang.toLowerCase());
   if (exact) {
@@ -70,55 +47,107 @@ export async function speakText(text: string, options: SpeakTextOptions = {}): P
   const lang = options.lang ?? "en-US";
   const rate = options.rate ?? 1;
   const pitch = options.pitch ?? 1;
-  const timeoutMs = options.timeoutMs ?? Math.max(8000, text.length * 180);
+  const timeoutMs = options.timeoutMs ?? Math.max(25000, text.length * 260);
 
   synth.cancel();
   if (synth.paused) {
     synth.resume();
   }
-  const voices = await waitForVoices(synth, 1200);
-
-  const utterance = new window.SpeechSynthesisUtterance(text);
-  utterance.lang = lang;
-  utterance.rate = rate;
-  utterance.pitch = pitch;
-
-  const voice = pickVoiceByLang(voices, lang);
-  if (voice) {
-    utterance.voice = voice;
-  }
 
   return new Promise<SpeakTextResult>((resolve) => {
     let done = false;
+    let started = false;
+    let retried = false;
     const finish = (result: SpeakTextResult) => {
       if (done) return;
       done = true;
+      window.clearTimeout(retryId);
+      window.clearTimeout(timeoutId);
       resolve(result);
     };
 
+    const createUtterance = () => {
+      const utterance = new window.SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = rate;
+      utterance.pitch = pitch;
+      const voices = synth.getVoices();
+      const voice = pickVoiceByLang(voices, lang);
+      if (voice) {
+        utterance.voice = voice;
+      }
+      utterance.onstart = () => {
+        started = true;
+        options.onStart?.();
+      };
+      utterance.onend = () => {
+        options.onEnd?.();
+        finish({ ok: true });
+      };
+      utterance.onerror = () => {
+        if (!retried) {
+          retried = true;
+          window.setTimeout(() => {
+            attemptSpeak();
+          }, 120);
+          return;
+        }
+        options.onError?.();
+        finish({ ok: false, reason: "error" });
+      };
+      return utterance;
+    };
+
+    const attemptSpeak = () => {
+      if (done) {
+        return;
+      }
+      try {
+        synth.cancel();
+        if (synth.paused) {
+          synth.resume();
+        }
+        const utterance = createUtterance();
+        synth.speak(utterance);
+        if (synth.paused) {
+          synth.resume();
+        }
+      } catch {
+        if (!retried) {
+          retried = true;
+          window.setTimeout(() => {
+            attemptSpeak();
+          }, 120);
+          return;
+        }
+        options.onError?.();
+        finish({ ok: false, reason: "error" });
+      }
+    };
+
+    const retryId = window.setTimeout(() => {
+      if (!started && !retried && !done) {
+        retried = true;
+        attemptSpeak();
+      }
+    }, 1400);
+
     const timeoutId = window.setTimeout(() => {
+      if (done) {
+        return;
+      }
       synth.cancel();
       options.onError?.();
-      finish({ ok: false, reason: "timeout" });
+      finish({ ok: false, reason: started ? "timeout" : "error" });
     }, timeoutMs);
 
-    utterance.onstart = () => {
-      options.onStart?.();
-    };
-    utterance.onend = () => {
-      window.clearTimeout(timeoutId);
-      options.onEnd?.();
-      finish({ ok: true });
-    };
-    utterance.onerror = () => {
-      window.clearTimeout(timeoutId);
-      options.onError?.();
-      finish({ ok: false, reason: "error" });
-    };
+    attemptSpeak();
 
-    synth.speak(utterance);
-    if (synth.paused) {
-      synth.resume();
+    if (synth.getVoices().length === 0) {
+      const onVoicesChanged = () => {
+        synth.removeEventListener("voiceschanged", onVoicesChanged);
+      };
+      synth.addEventListener("voiceschanged", onVoicesChanged);
     }
   });
 }
