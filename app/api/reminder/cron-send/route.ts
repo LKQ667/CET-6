@@ -24,6 +24,16 @@ const REMINDER_BATCH_SIZE = 10;
 
 type ReminderUser = Awaited<ReturnType<typeof listReminderUsers>>[number];
 
+function isSchemaMissingError(error: unknown) {
+  const msg = String(error ?? "").toLowerCase();
+  return (
+    msg.includes("could not find the table") ||
+    msg.includes("schema cache") ||
+    msg.includes("does not exist") ||
+    msg.includes("relation")
+  );
+}
+
 function extractTodaySentence(content: unknown): { en: string; zh?: string } | null {
   if (!content || typeof content !== "object") {
     return null;
@@ -56,35 +66,50 @@ async function shouldSkipSlot(userId: string, slot: string, date: string) {
   if (!isSupabaseReady()) {
     return false;
   }
-  const supabase = getSupabaseServiceClient();
-  const eventKey = `reminder:${date}:${slot}`;
-  const { data, error } = await supabase
-    .from("activity_logs")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("event_type", "reminder_sent")
-    .eq("event_key", eventKey)
-    .maybeSingle();
-  if (error) {
-    throw new Error(`检查提醒幂等失败: ${error.message}`);
+  try {
+    const supabase = getSupabaseServiceClient();
+    const eventKey = `reminder:${date}:${slot}`;
+    const { data, error } = await supabase
+      .from("activity_logs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("event_type", "reminder_sent")
+      .eq("event_key", eventKey)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`检查提醒幂等失败: ${error.message}`);
+    }
+    return Boolean(data);
+  } catch (error) {
+    // activity_logs 缺失时不阻断发送，仅失去幂等能力
+    if (isSchemaMissingError(error)) {
+      return false;
+    }
+    throw error;
   }
-  return Boolean(data);
 }
 
 async function markSlotSent(userId: string, slot: string, date: string, result: Record<string, unknown>) {
   if (!isSupabaseReady()) {
     return;
   }
-  const supabase = getSupabaseServiceClient();
-  const { error } = await supabase.from("activity_logs").insert({
-    id: randomUUID(),
-    user_id: userId,
-    event_type: "reminder_sent",
-    event_key: `reminder:${date}:${slot}`,
-    payload: result
-  });
-  if (error) {
-    throw new Error(`写入提醒日志失败: ${error.message}`);
+  try {
+    const supabase = getSupabaseServiceClient();
+    const { error } = await supabase.from("activity_logs").insert({
+      id: randomUUID(),
+      user_id: userId,
+      event_type: "reminder_sent",
+      event_key: `reminder:${date}:${slot}`,
+      payload: result
+    });
+    if (error) {
+      throw new Error(`写入提醒日志失败: ${error.message}`);
+    }
+  } catch (error) {
+    // activity_logs 缺失时不阻断主流程
+    if (!isSchemaMissingError(error)) {
+      throw error;
+    }
   }
 }
 

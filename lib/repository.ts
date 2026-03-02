@@ -1098,17 +1098,38 @@ export async function listReminderUsers() {
     ];
   }
   const supabase = getSupabaseServiceClient();
-  const { data, error } = await supabase.from("users").select("id, email, target_score");
-  if (error) {
-    throw new Error(`读取提醒用户失败: ${error.message}`);
+  try {
+    const { data, error } = await supabase.from("users").select("id, email, target_score");
+    if (error) {
+      throw new Error(`读取提醒用户失败: ${error.message}`);
+    }
+    return (data ?? [])
+      .filter((row) => typeof row.email === "string" && row.email.length > 0)
+      .map((row) => ({
+        userId: String(row.id),
+        email: String(row.email),
+        targetScore: Number(row.target_score ?? 500)
+      }));
+  } catch (error) {
+    // 兼容未执行完整 schema.sql（如缺少 public.users）时的线上降级
+    if (!shouldUseMockFallback(error)) {
+      throw error;
+    }
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000
+    });
+    if (authError) {
+      throw new Error(`读取提醒用户失败: ${authError.message}`);
+    }
+    return (authUsers.users ?? [])
+      .filter((u) => typeof u.email === "string" && u.email.length > 0)
+      .map((u) => ({
+        userId: String(u.id),
+        email: String(u.email),
+        targetScore: 500
+      }));
   }
-  return (data ?? [])
-    .filter((row) => typeof row.email === "string" && row.email.length > 0)
-    .map((row) => ({
-      userId: String(row.id),
-      email: String(row.email),
-      targetScore: Number(row.target_score ?? 500)
-    }));
 }
 
 // ============================================================
